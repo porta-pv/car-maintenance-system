@@ -6,17 +6,27 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { doc, getDoc }        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// قاعدة المسار — تعمل محلياً وعلى GitHub Pages
+const BASE = window.location.pathname.includes("/car-maintenance-system")
+  ? "/car-maintenance-system"
+  : "";
+
 // خريطة الأدوار → الصفحات
 const ROLE_PAGES = {
-  owner:     "/pages/owner.html",
-  tech:      "/pages/tech.html",
-  manager:   "/pages/admin.html",
-  it:        "/pages/it.html",
-  developer: "/pages/developer.html",
+  owner:     BASE + "/pages/owner.html",
+  tech:      BASE + "/pages/tech.html",
+  manager:   BASE + "/pages/admin.html",
+  it:        BASE + "/pages/it.html",
+  developer: BASE + "/pages/developer.html",
 };
 
 // الصفحات العامة التي لا تحتاج تسجيل دخول
-const PUBLIC_PAGES = ["/pages/login.html", "/index.html", "/"];
+const PUBLIC_PAGES = [
+  BASE + "/pages/login.html",
+  BASE + "/index.html",
+  BASE + "/",
+  "/",
+];
 
 /**
  * يُشغَّل في index.html ويراقب حالة المصادقة.
@@ -28,29 +38,26 @@ export function initRouter() {
     const path = window.location.pathname;
 
     if (!user) {
-      // غير مسجل → أرسله للدخول إن لم يكن عليها
-      if (!PUBLIC_PAGES.some(p => path.endsWith(p))) {
-        window.location.href = "/pages/login.html";
+      if (!PUBLIC_PAGES.some(p => path.endsWith(p) || path === p)) {
+        window.location.href = BASE + "/pages/login.html";
       }
       return;
     }
 
-    // مسجل → جلب بيانات المستخدم من Firestore
     try {
       const snap = await getDoc(doc(db, "users", user.uid));
       if (!snap.exists()) {
         console.error("المستخدم غير موجود في قاعدة البيانات");
         await auth.signOut();
-        window.location.href = "/pages/login.html";
+        window.location.href = BASE + "/pages/login.html";
         return;
       }
 
       const data = snap.data();
 
-      // حساب مجمّد → خروج فوري
       if (data.frozen) {
         await auth.signOut();
-        window.location.href = "/pages/login.html?reason=frozen";
+        window.location.href = BASE + "/pages/login.html?reason=frozen";
         return;
       }
 
@@ -60,8 +67,7 @@ export function initRouter() {
         return;
       }
 
-      // إذا لم يكن على الصفحة الصحيحة → وجّهه
-      if (!path.endsWith(targetPage)) {
+      if (!path.endsWith(targetPage.replace(BASE, ""))) {
         window.location.href = targetPage;
       }
     } catch (err) {
@@ -73,22 +79,20 @@ export function initRouter() {
 /**
  * يُستخدم في كل صفحة دور للتحقق من أن المستخدم الحالي
  * يملك الدور المطلوب فعلاً.
- * @param {string} requiredRole - الدور المتوقع لهذه الصفحة
- * @returns {Promise<{user, userData}>}
  */
 export async function requireRole(requiredRole) {
   return new Promise((resolve, reject) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       unsubscribe();
       if (!user) {
-        window.location.href = "/pages/login.html";
+        window.location.href = BASE + "/pages/login.html";
         return reject("no_user");
       }
 
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
         if (!snap.exists()) {
-          window.location.href = "/pages/login.html";
+          window.location.href = BASE + "/pages/login.html";
           return reject("no_doc");
         }
 
@@ -96,12 +100,11 @@ export async function requireRole(requiredRole) {
 
         if (userData.frozen) {
           await auth.signOut();
-          window.location.href = "/pages/login.html?reason=frozen";
+          window.location.href = BASE + "/pages/login.html?reason=frozen";
           return reject("frozen");
         }
 
         if (userData.role !== requiredRole) {
-          // الدور خاطئ → وجّهه لصفحته الصحيحة
           const correct = ROLE_PAGES[userData.role];
           if (correct) window.location.href = correct;
           return reject("wrong_role");
