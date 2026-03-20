@@ -1,0 +1,123 @@
+// ===================================================
+// firestore.rules — قواعد أمان Firestore
+// ===================================================
+// انسخ هذا المحتوى في Firebase Console →
+// Firestore Database → Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ——— دوال مساعدة ———
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function myData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuth() && myData().role == role;
+    }
+
+    function notFrozen() {
+      return isAuth() && myData().frozen == false;
+    }
+
+    function isActiveUser() {
+      return isAuth() && notFrozen();
+    }
+
+    // ——— users collection ———
+    match /users/{uid} {
+      // كل مستخدم يقرأ بياناته فقط
+      allow read: if isAuth() && (request.auth.uid == uid || hasRole('it') || hasRole('manager') || hasRole('developer'));
+      // IT ينشئ ويعدّل
+      allow create, update: if hasRole('it');
+      // لا أحد يحذف مستخدماً (يجمّد بدلاً)
+      allow delete: if false;
+    }
+
+    // ——— vehicles collection ———
+    match /vehicles/{vehicleId} {
+      // رئيس الهيئة يرى سياراته فقط
+      allow read: if isActiveUser() && (
+        hasRole('tech') ||
+        hasRole('manager') ||
+        hasRole('it') ||
+        hasRole('developer') ||
+        (hasRole('owner') && resource.data.ownerId == request.auth.uid)
+      );
+
+      // رئيس الهيئة يضيف سياراته
+      allow create: if isActiveUser() && hasRole('owner') &&
+        request.resource.data.ownerId == request.auth.uid;
+
+      // تعديل: رئيس الهيئة يعدّل سيارته (عداد)،
+      // المدير يوافق على النقل
+      allow update: if isActiveUser() && (
+        (hasRole('owner') && resource.data.ownerId == request.auth.uid) ||
+        hasRole('manager') ||
+        hasRole('it')
+      );
+
+      // لا حذف (أرشفة بدلاً)
+      allow delete: if false;
+    }
+
+    // ——— requests collection ———
+    match /requests/{requestId} {
+      allow read: if isActiveUser() && (
+        hasRole('tech') ||
+        hasRole('manager') ||
+        hasRole('it') ||
+        hasRole('developer') ||
+        (hasRole('owner') && resource.data.ownerId == request.auth.uid)
+      );
+
+      // رئيس الهيئة ينشئ طلباً لسيارته
+      allow create: if isActiveUser() && hasRole('owner') &&
+        request.resource.data.ownerId == request.auth.uid;
+
+      // الفني يعدّل الطلب (تحديث الحالة، التقرير)
+      // رئيس الهيئة يؤكد الاستلام
+      allow update: if isActiveUser() && (
+        hasRole('tech') ||
+        hasRole('manager') ||
+        (hasRole('owner') && resource.data.ownerId == request.auth.uid)
+      );
+
+      allow delete: if false;
+    }
+
+    // ——— reports collection ———
+    match /reports/{reportId} {
+      allow read: if isActiveUser() && (
+        hasRole('tech') ||
+        hasRole('manager') ||
+        hasRole('it') ||
+        hasRole('developer') ||
+        (hasRole('owner') && resource.data.ownerId == request.auth.uid)
+      );
+
+      allow create: if isActiveUser() && hasRole('tech');
+      allow update: if isActiveUser() && (hasRole('tech') || hasRole('manager'));
+      allow delete: if false;
+    }
+
+    // ——— notifications collection ———
+    match /notifications/{notifId} {
+      // كل مستخدم يقرأ إشعاراته فقط
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isActiveUser();  // يُكتب بالـ Cloud Functions عادةً
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ——— الرفض الافتراضي لكل شيء آخر ———
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

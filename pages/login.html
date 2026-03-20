@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>تسجيل الدخول — نظام الصيانة</title>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--clr-bg);
+      padding: 20px;
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-logo {
+      width: 56px;
+      height: 56px;
+      background: var(--clr-primary);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      margin: 0 auto 14px;
+    }
+
+    .login-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--clr-text-1);
+      margin-bottom: 4px;
+    }
+
+    .login-sub {
+      font-size: .85rem;
+      color: var(--clr-text-3);
+    }
+
+    .login-card {
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .login-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: .875rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .frozen-notice {
+      background: #f3f4f6;
+      color: #374151;
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: .875rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 11px;
+      font-size: 1rem;
+      margin-top: 4px;
+    }
+
+    .spinner-inline {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-header">
+    <div class="login-logo">🚗</div>
+    <div class="login-title">نظام متابعة الصيانة</div>
+    <div class="login-sub">هيئة الأمر بالمعروف — منطقة جازان</div>
+  </div>
+
+  <div class="login-card">
+    <!-- إشعار الحساب المجمّد -->
+    <div class="frozen-notice" id="frozen-notice">
+      ⛔ حسابك موقوف مؤقتاً. تواصل مع مسؤول النظام.
+    </div>
+
+    <!-- رسالة الخطأ -->
+    <div class="login-error" id="login-error"></div>
+
+    <div class="form-group">
+      <label class="form-label" for="email">البريد الإلكتروني</label>
+      <input
+        class="form-input"
+        type="email"
+        id="email"
+        placeholder="user@example.com"
+        autocomplete="email"
+        inputmode="email"
+      />
+    </div>
+
+    <div class="form-group" style="margin-bottom: 20px;">
+      <label class="form-label" for="password">كلمة المرور</label>
+      <input
+        class="form-input"
+        type="password"
+        id="password"
+        placeholder="••••••••"
+        autocomplete="current-password"
+      />
+    </div>
+
+    <button class="btn btn-primary login-btn" id="login-btn" onclick="doLogin()">
+      <span id="btn-text">تسجيل الدخول</span>
+      <span class="spinner-inline" id="btn-spinner"></span>
+    </button>
+  </div>
+</div>
+
+<script type="module">
+  import { auth } from "../js/firebase.js";
+  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { requireRole } from "../js/router.js";
+
+  // إذا كان المستخدم مسجلاً → وجّهه مباشرة
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { db } from "../js/firebase.js";
+
+  const ROLE_PAGES = {
+    owner:     "/pages/owner.html",
+    tech:      "/pages/tech.html",
+    manager:   "/pages/admin.html",
+    it:        "/pages/it.html",
+    developer: "/pages/developer.html",
+  };
+
+  // حالة الحساب المجمّد
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("reason") === "frozen") {
+    document.getElementById("frozen-notice").style.display = "block";
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists() && !snap.data().frozen) {
+        const target = ROLE_PAGES[snap.data().role];
+        if (target) window.location.href = target;
+      }
+    } catch {}
+  });
+
+  // تعريف doLogin بشكل عام ليُستخدم في onclick
+  window.doLogin = async function() {
+    const email    = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const errEl    = document.getElementById("login-error");
+    const btn      = document.getElementById("login-btn");
+    const btnText  = document.getElementById("btn-text");
+    const spinner  = document.getElementById("btn-spinner");
+
+    errEl.style.display = "none";
+
+    if (!email || !password) {
+      errEl.style.display = "block";
+      errEl.textContent = "يرجى إدخال البريد الإلكتروني وكلمة المرور.";
+      return;
+    }
+
+    // تحميل
+    btn.disabled = true;
+    btnText.textContent = "جارٍ الدخول...";
+    spinner.style.display = "inline-block";
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // router.js سيتولى التوجيه عبر onAuthStateChanged
+    } catch (err) {
+      btn.disabled = false;
+      btnText.textContent = "تسجيل الدخول";
+      spinner.style.display = "none";
+      errEl.style.display = "block";
+
+      switch (err.code) {
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+        case "auth/invalid-credential":
+          errEl.textContent = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
+          break;
+        case "auth/too-many-requests":
+          errEl.textContent = "تم تعليق الحساب مؤقتاً بسبب كثرة المحاولات. حاول لاحقاً.";
+          break;
+        default:
+          errEl.textContent = "حدث خطأ. يرجى المحاولة مرة أخرى.";
+      }
+    }
+  };
+
+  // إرسال بـ Enter
+  document.getElementById("password").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") window.doLogin();
+  });
+</script>
+</body>
+</html>
