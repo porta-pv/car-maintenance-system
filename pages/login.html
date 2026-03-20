@@ -154,12 +154,14 @@
   import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { db } from "../js/firebase.js";
 
+  const BASE = window.location.pathname.includes("/car-maintenance-system")
+    ? "/car-maintenance-system" : "";
   const ROLE_PAGES = {
-    owner:     "/pages/owner.html",
-    tech:      "/pages/tech.html",
-    manager:   "/pages/admin.html",
-    it:        "/pages/it.html",
-    developer: "/pages/developer.html",
+    owner:     BASE + "/pages/owner.html",
+    tech:      BASE + "/pages/tech.html",
+    manager:   BASE + "/pages/admin.html",
+    it:        BASE + "/pages/it.html",
+    developer: BASE + "/pages/developer.html",
   };
 
   // حالة الحساب المجمّد
