@@ -843,33 +843,53 @@ window.createUser = async function() {
   const dept  = document.getElementById("nu-dept").value.trim();
 
   if (!name||!email||!pass||!role) { showToast("يرجى ملء الحقول المطلوبة", "error"); return; }
-  if (pass.length < 8)             { showToast("كلمة المرور يجب أن تكون 8 أحرف على الأقل", "error"); return; }
+  if (pass.length < 8) { showToast("كلمة المرور يجب أن تكون 8 أحرف على الأقل", "error"); return; }
+
+  const btn = document.querySelector("#section-new-user .btn-primary");
+  if (btn) { btn.disabled = true; btn.textContent = "جارٍ الإنشاء..."; }
 
   try {
-    // إنشاء في Firebase Auth
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    const newUid = cred.user.uid;
+    // ── إنشاء الحساب عبر REST API بدون تغيير الجلسة الحالية ──
+    const API_KEY = "AIzaSyBosByp3a-Fb8NS3CbUzgugHiuHOy-SNKc";
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pass, returnSecureToken: false }),
+      }
+    );
+    const data = await res.json();
 
-    // تسجيل في Firestore
-    await addDoc(collection(db,"users"), {
+    if (!res.ok) {
+      const msg = data.error?.message || "فشل الإنشاء";
+      if (msg === "EMAIL_EXISTS") throw new Error("البريد الإلكتروني مستخدم بالفعل");
+      if (msg === "WEAK_PASSWORD : Password should be at least 6 characters") throw new Error("كلمة المرور ضعيفة جداً");
+      throw new Error(msg);
+    }
+
+    const newUid = data.localId;
+
+    // ── تسجيل في Firestore ──
+    await addDoc(collection(db, "users"), {
       uid: newUid, name, email, role,
-      phone: phone||null, dept: dept||null,
+      phone: phone || null, dept: dept || null,
       frozen: false,
       createdAt: serverTimestamp(),
       createdBy: itUid,
     });
 
-    await logAction("create", `إنشاء مستخدم جديد: ${name} (${ROLE_LABELS[role]||role})`);
+    await logAction("create", `إنشاء مستخدم جديد: ${name} (${ROLE_LABELS[role] || role})`);
 
-    // عرض البيانات في مودال
+    // ── عرض بيانات الحساب الجديد ──
     document.getElementById("created-user-info").innerHTML =
       `الاسم: <strong>${name}</strong><br/>
        البريد: <strong>${email}</strong><br/>
-       الدور: <strong>${ROLE_LABELS[role]||role}</strong><br/>
+       الدور: <strong>${ROLE_LABELS[role] || role}</strong><br/>
        كلمة المرور المؤقتة: <strong style="font-family:monospace;font-size:1rem">${pass}</strong>`;
     document.getElementById("modal-user-created").style.display = "flex";
 
-    // مسح النموذج
+    // ── مسح النموذج ──
     ["nu-name","nu-email","nu-password","nu-phone","nu-dept"].forEach(id =>
       document.getElementById(id).value = "");
     document.getElementById("nu-role").value = "";
@@ -878,10 +898,9 @@ window.createUser = async function() {
     await loadOverview();
   } catch (e) {
     console.error(e);
-    if (e.code === "auth/email-already-in-use")
-      showToast("البريد الإلكتروني مستخدم بالفعل", "error");
-    else
-      showToast("حدث خطأ أثناء الإنشاء: " + e.message, "error");
+    showToast(e.message || "حدث خطأ أثناء الإنشاء", "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "إنشاء الحساب"; }
   }
 };
 
