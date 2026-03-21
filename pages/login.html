@@ -204,8 +204,13 @@
     spinner.style.display = "inline-block";
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // router.js سيتولى التوجيه عبر onAuthStateChanged
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+      if (snap.exists()) {
+        const target = ROLE_PAGES[snap.data().role];
+        if (target) { window.location.href = target; return; }
+      }
+      window.location.href = BASE + "/index.html";
     } catch (err) {
       btn.disabled = false;
       btnText.textContent = "تسجيل الدخول";
