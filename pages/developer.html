@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>لوحة المطور — نظام الصيانة</title>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .section-title { font-size: 1.15rem; font-weight: 700; }
+
+    /* ——— شارة القراءة فقط ——— */
+    .readonly-banner {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      font-size: .85rem;
+      color: #78350f;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ——— فلاتر ——— */
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .filter-select, .search-input {
+      padding: 7px 10px;
+      border: 1px solid var(--clr-border-md);
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: .85rem;
+      color: var(--clr-text-1);
+      background: var(--clr-surface);
+    }
+    .search-input { width: 200px; text-align: right; }
+    .filter-select:focus, .search-input:focus {
+      outline: none; border-color: var(--clr-primary);
+    }
+
+    /* ——— بطاقات إحصاء ——— */
+    .stat-card.accent-blue   { border-top: 3px solid var(--clr-primary); }
+    .stat-card.accent-green  { border-top: 3px solid #10b981; }
+    .stat-card.accent-amber  { border-top: 3px solid #f59e0b; }
+    .stat-card.accent-red    { border-top: 3px solid #ef4444; }
+    .stat-card.accent-purple { border-top: 3px solid #7c3aed; }
+
+    /* ——— جدول ——— */
+    .col-sm { width: 100px; }
+    .col-md { width: 140px; }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ——— الرأس ——— -->
+  <header class="app-header">
+    <span class="logo">🚗 نظام الصيانة</span>
+    <span style="font-size:.8rem;color:var(--clr-text-3);background:var(--clr-bg);padding:3px 10px;border-radius:999px;">
+      مطور
+    </span>
+    <div class="user-info">
+      <span class="user-name" id="hdr-name">…</span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">خروج</button>
+    </div>
+  </header>
+
+  <!-- ——— الشريط الجانبي ——— -->
+  <nav class="app-sidebar">
+    <div class="nav-section">
+      <div class="nav-section-title">عرض البيانات</div>
+      <button class="nav-item active" id="nav-overview" onclick="showSection('overview')">
+        <span class="nav-icon">📊</span> نظرة عامة
+      </button>
+      <button class="nav-item" id="nav-users" onclick="showSection('users')">
+        <span class="nav-icon">👥</span> المستخدمون
+      </button>
+      <button class="nav-item" id="nav-vehicles" onclick="showSection('vehicles')">
+        <span class="nav-icon">🚗</span> السيارات
+      </button>
+      <button class="nav-item" id="nav-requests" onclick="showSection('requests')">
+        <span class="nav-icon">🔧</span> الطلبات
+      </button>
+      <button class="nav-item" id="nav-reports" onclick="showSection('reports')">
+        <span class="nav-icon">📋</span> التقارير
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">النظام</div>
+      <button class="nav-item" id="nav-system" onclick="showSection('system')">
+        <span class="nav-icon">⚙️</span> حالة النظام
+      </button>
+    </div>
+  </nav>
+
+  <!-- ——— المحتوى ——— -->
+  <main class="app-main">
+
+    <!-- ══ نظرة عامة ══ -->
+    <div class="section active" id="section-overview">
+      <div class="section-header">
+        <h2 class="section-title">نظرة عامة — عرض فقط</h2>
+        <span id="ov-date" style="font-size:.85rem;color:var(--clr-text-3)"></span>
+      </div>
+
+      <div class="readonly-banner">
+        👁️ أنت في وضع <strong>عرض فقط</strong> — لا يمكن تعديل أي بيانات
+      </div>
+
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card accent-blue">
+          <div class="stat-label">المستخدمون</div>
+          <div class="stat-value" id="ov-users">—</div>
+          <div class="stat-sub">إجمالي</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">السيارات</div>
+          <div class="stat-value" id="ov-vehicles">—</div>
+          <div class="stat-sub">مسجّلة</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">طلبات مفتوحة</div>
+          <div class="stat-value" id="ov-open">—</div>
+          <div class="stat-sub">نشطة حالياً</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">طلبات منجزة</div>
+          <div class="stat-value" id="ov-done">—</div>
+          <div class="stat-sub">إجمالي</div>
+        </div>
+        <div class="stat-card accent-red">
+          <div class="stat-label">إجمالي التكاليف</div>
+          <div class="stat-value" id="ov-cost">—</div>
+          <div class="stat-sub">ريال سعودي</div>
+        </div>
+      </div>
+
+      <!-- توزيع الأدوار -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <span class="card-title">توزيع المستخدمين حسب الدور</span>
+        </div>
+        <div id="role-dist" style="display:flex;flex-direction:column;gap:10px;padding:4px 0">
+          <div style="color:var(--clr-text-3);font-size:.875rem">جارٍ التحميل…</div>
+        </div>
+      </div>
+
+      <!-- توزيع حالات الطلبات -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">توزيع حالات الطلبات</span>
+        </div>
+        <div id="status-dist" style="display:flex;flex-direction:column;gap:10px;padding:4px 0">
+          <div style="color:var(--clr-text-3);font-size:.875rem">جارٍ التحميل…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ المستخدمون ══ -->
+    <div class="section" id="section-users">
+      <div class="section-header">
+        <h2 class="section-title">المستخدمون</h2>
+        <div class="filters">
+          <input class="search-input" type="search" id="usr-search" placeholder="بحث…" oninput="filterUsers()"/>
+          <select class="filter-select" id="usr-role" onchange="filterUsers()">
+            <option value="">جميع الأدوار</option>
+            <option value="owner">رئيس الهيئة</option>
+            <option value="tech">فني</option>
+            <option value="manager">مدير</option>
+            <option value="it">IT</option>
+            <option value="developer">مطور</option>
+          </select>
+        </div>
+      </div>
+      <div class="readonly-banner">👁️ عرض فقط — لا يمكن تعديل بيانات المستخدمين</div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>البريد</th>
+                <th>الدور</th>
+                <th class="col-sm">الحالة</th>
+                <th class="col-md">تاريخ الإنشاء</th>
+              </tr>
+            </thead>
+            <tbody id="users-body">
+              <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ السيارات ══ -->
+    <div class="section" id="section-vehicles">
+      <div class="section-header">
+        <h2 class="section-title">السيارات</h2>
+        <div class="filters">
+          <input class="search-input" type="search" id="veh-search" placeholder="بحث…" oninput="filterVehicles()"/>
+        </div>
+      </div>
+      <div class="readonly-banner">👁️ عرض فقط</div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>اللوحة</th>
+                <th>النوع</th>
+                <th>المالك</th>
+                <th class="col-sm">العداد (كم)</th>
+                <th class="col-sm">الحالة</th>
+                <th class="col-md">تاريخ التسجيل</th>
+              </tr>
+            </thead>
+            <tbody id="vehicles-body">
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ الطلبات ══ -->
+    <div class="section" id="section-requests">
+      <div class="section-header">
+        <h2 class="section-title">طلبات الصيانة</h2>
+        <div class="filters">
+          <input class="search-input" type="search" id="req-search" placeholder="بحث…" oninput="filterRequests()"/>
+          <select class="filter-select" id="req-status" onchange="filterRequests()">
+            <option value="">جميع الحالات</option>
+            <option value="pending">بانتظار القبول</option>
+            <option value="accepted">مقبول</option>
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="done">منجز</option>
+            <option value="cancelled">ملغي</option>
+          </select>
+        </div>
+      </div>
+      <div class="readonly-banner">👁️ عرض فقط</div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>السيارة</th>
+                <th class="col-md">رئيس الهيئة</th>
+                <th>نوع الصيانة</th>
+                <th class="col-sm">الأولوية</th>
+                <th class="col-md">الحالة</th>
+                <th class="col-md">التاريخ</th>
+              </tr>
+            </thead>
+            <tbody id="requests-body">
+              <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ التقارير ══ -->
+    <div class="section" id="section-reports">
+      <div class="section-header">
+        <h2 class="section-title">التقارير</h2>
+        <div class="filters">
+          <input class="search-input" type="search" id="rep-search" placeholder="بحث…" oninput="filterReports()"/>
+        </div>
+      </div>
+      <div class="readonly-banner">👁️ عرض فقط</div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>الفني</th>
+                <th>نوع الصيانة</th>
+                <th>قطع الغيار</th>
+                <th class="col-sm">التكلفة</th>
+                <th class="col-sm">الحالة بعد</th>
+                <th class="col-md">التاريخ</th>
+              </tr>
+            </thead>
+            <tbody id="reports-body">
+              <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ حالة النظام ══ -->
+    <div class="section" id="section-system">
+      <div class="section-header">
+        <h2 class="section-title">حالة النظام</h2>
+        <button class="btn btn-outline btn-sm" onclick="loadSystemStatus()">🔄 تحديث</button>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:14px">إحصاءات Collections</div>
+        <div id="collections-stats">
+          <div style="text-align:center;padding:16px;color:var(--clr-text-3)">جارٍ الفحص…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px">معلومات الجلسة</div>
+        <div id="session-info"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════
+     JavaScript
+════════════════════════════════════════ -->
+<script type="module">
+import { auth, db }    from "../js/firebase.js";
+import { requireRole } from "../js/router.js";
+import {
+  showToast, statusBadge, formatDate, logout as doLogoutFn
+} from "../js/utils.js";
+import {
+  collection, query, where, orderBy, limit,
+  getDocs, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ——— البيانات ———
+let allUsers    = [];
+let allVehicles = [];
+let allRequests = [];
+let allReports  = [];
+
+const ROLE_LABELS = {
+  owner:"رئيس الهيئة", tech:"فني", manager:"مدير", it:"IT", developer:"مطور"
+};
+
+const CONDITION_LABELS = {
+  good: "جيدة", needs_followup: "تحتاج متابعة", needs_major: "تحتاج صيانة كبرى"
+};
+
+// ——— بوابة الدخول ———
+(async () => {
+  try {
+    const { user, userData } = await requireRole("developer");
+    document.getElementById("hdr-name").textContent = userData.name || user.email;
+    document.getElementById("ov-date").textContent =
+      new Date().toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+    await Promise.all([loadOverview(), loadUsers(), loadVehicles(), loadRequests(), loadReports()]);
+    loadSystemStatus();
+  } catch (e) { console.error(e); }
+})();
+
+// ══════════════════════════
+// التنقل
+// ══════════════════════════
+window.showSection = function(name) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+  document.getElementById("section-" + name).classList.add("active");
+  const nav = document.getElementById("nav-" + name);
+  if (nav) nav.classList.add("active");
+};
+window.doLogout = () => doLogoutFn();
+
+// ══════════════════════════
+// النظرة العامة
+// ══════════════════════════
+async function loadOverview() {
+  const [uSnap, vSnap, rSnap] = await Promise.all([
+    getDocs(collection(db,"users")),
+    getDocs(collection(db,"vehicles")),
+    getDocs(collection(db,"requests")),
+  ]);
+
+  const requests = [];
+  rSnap.forEach(d => requests.push(d.data()));
+
+  const open = requests.filter(r => ["pending","accepted","in_progress"].includes(r.status)).length;
+  const done = requests.filter(r => r.status === "done");
+  const cost = done.reduce((s,r) => s + (Number(r.cost)||0), 0);
+
+  document.getElementById("ov-users").textContent    = uSnap.size;
+  document.getElementById("ov-vehicles").textContent = vSnap.size;
+  document.getElementById("ov-open").textContent     = open;
+  document.getElementById("ov-done").textContent     = done.length;
+  document.getElementById("ov-cost").textContent     = cost.toLocaleString("ar");
+
+  // توزيع الأدوار
+  const users = [];
+  uSnap.forEach(d => users.push(d.data()));
+  const roleCounts = {};
+  users.forEach(u => { roleCounts[u.role] = (roleCounts[u.role]||0)+1; });
+  const total = users.length;
+
+  document.getElementById("role-dist").innerHTML =
+    Object.entries(ROLE_LABELS).map(([role, label]) => {
+      const count = roleCounts[role] || 0;
+      const pct   = total ? Math.round(count/total*100) : 0;
+      return `
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:90px;font-size:.85rem;color:var(--clr-text-2);flex-shrink:0">${label}</span>
+          <div style="flex:1;background:var(--clr-border);border-radius:999px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;background:var(--clr-primary);height:100%;border-radius:999px"></div>
+          </div>
+          <span style="width:28px;font-size:.85rem;font-weight:600">${count}</span>
+        </div>`;
+    }).join("");
+
+  // توزيع حالات الطلبات
+  const statusMap = { pending:"بانتظار القبول", accepted:"مقبول", in_progress:"قيد التنفيذ", done:"منجز", cancelled:"ملغي" };
+  const statusColors = { pending:"#f59e0b", accepted:"#3b82f6", in_progress:"#1c64f2", done:"#10b981", cancelled:"#ef4444" };
+  const statusCounts = {};
+  requests.forEach(r => { statusCounts[r.status] = (statusCounts[r.status]||0)+1; });
+  const totalR = requests.length;
+
+  document.getElementById("status-dist").innerHTML =
+    Object.entries(statusMap).map(([status, label]) => {
+      const count = statusCounts[status] || 0;
+      const pct   = totalR ? Math.round(count/totalR*100) : 0;
+      return `
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:130px;font-size:.85rem;color:var(--clr-text-2);flex-shrink:0">${label}</span>
+          <div style="flex:1;background:var(--clr-border);border-radius:999px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;background:${statusColors[status]};height:100%;border-radius:999px"></div>
+          </div>
+          <span style="width:28px;font-size:.85rem;font-weight:600">${count}</span>
+        </div>`;
+    }).join("");
+}
+
+// ══════════════════════════
+// المستخدمون
+// ══════════════════════════
+async function loadUsers() {
+  const snap = await getDocs(query(collection(db,"users"), orderBy("createdAt","desc")));
+  allUsers   = [];
+  snap.forEach(d => allUsers.push({ id:d.id, ...d.data() }));
+  renderUsers(allUsers);
+}
+
+function renderUsers(list) {
+  const tbody = document.getElementById("users-body");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد نتائج</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(u => `
+    <tr>
+      <td style="font-weight:600">${u.name||"—"}</td>
+      <td style="font-size:.82rem;color:var(--clr-text-2)">${u.email||"—"}</td>
+      <td><span class="badge ${roleBadgeCls(u.role)}">${ROLE_LABELS[u.role]||u.role}</span></td>
+      <td>${u.frozen
+        ? `<span class="badge" style="background:#f3f4f6;color:#6b7280">⛔ مجمّد</span>`
+        : `<span class="badge badge-done">نشط</span>`}</td>
+      <td style="font-size:.82rem;color:var(--clr-text-3)">${formatDate(u.createdAt)}</td>
+    </tr>`).join("");
+}
+
+function roleBadgeCls(role) {
+  const map = { owner:"badge-pending", tech:"badge-done", manager:"badge-active", it:"", developer:"" };
+  return map[role] || "";
+}
+
+window.filterUsers = function() {
+  const search = document.getElementById("usr-search").value.toLowerCase();
+  const role   = document.getElementById("usr-role").value;
+  renderUsers(allUsers.filter(u =>
+    (!search || (u.name||"").toLowerCase().includes(search) || (u.email||"").toLowerCase().includes(search)) &&
+    (!role   || u.role === role)
+  ));
+};
+
+// ══════════════════════════
+// السيارات
+// ══════════════════════════
+async function loadVehicles() {
+  const snap  = await getDocs(collection(db,"vehicles"));
+  allVehicles = [];
+  snap.forEach(d => allVehicles.push({ id:d.id, ...d.data() }));
+  renderVehicles(allVehicles);
+}
+
+function renderVehicles(list) {
+  const tbody = document.getElementById("vehicles-body");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد سيارات</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(v => `
+    <tr>
+      <td style="font-weight:700;letter-spacing:.04em">${v.plate||"—"}</td>
+      <td>${v.make||""} ${v.model||""} ${v.year ? "("+v.year+")" : ""}</td>
+      <td>${v.ownerName||"—"}</td>
+      <td style="text-align:center">${Number(v.currentKm||0).toLocaleString("ar")}</td>
+      <td>${v.status === "waiting_approval"
+        ? `<span class="badge badge-pending">انتظار موافقة</span>`
+        : `<span class="badge badge-done">نشطة</span>`}</td>
+      <td style="font-size:.82rem;color:var(--clr-text-3)">${formatDate(v.createdAt)}</td>
+    </tr>`).join("");
+}
+
+window.filterVehicles = function() {
+  const search = document.getElementById("veh-search").value.toLowerCase();
+  renderVehicles(allVehicles.filter(v =>
+    !search ||
+    (v.plate||"").toLowerCase().includes(search) ||
+    (v.ownerName||"").toLowerCase().includes(search) ||
+    (v.make||"").toLowerCase().includes(search)
+  ));
+};
+
+// ══════════════════════════
+// الطلبات
+// ══════════════════════════
+async function loadRequests() {
+  const snap  = await getDocs(query(collection(db,"requests"), orderBy("createdAt","desc"), limit(200)));
+  allRequests = [];
+  snap.forEach(d => allRequests.push({ id:d.id, ...d.data() }));
+  renderRequests(allRequests);
+}
+
+function renderRequests(list) {
+  const tbody = document.getElementById("requests-body");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد طلبات</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(r => `
+    <tr>
+      <td style="font-size:.78rem;color:var(--clr-text-3);font-family:monospace">${r.requestId||r.id.slice(0,8)}</td>
+      <td style="font-weight:600">${r.vehiclePlate||"—"}</td>
+      <td>${r.ownerName||"—"}</td>
+      <td>${r.maintenanceType||"—"}</td>
+      <td>${r.priority === "urgent"
+        ? `<span class="badge" style="background:#fee2e2;color:#991b1b">⚡ عاجل</span>`
+        : `<span class="badge badge-active">عادية</span>`}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td style="font-size:.82rem;color:var(--clr-text-3)">${formatDate(r.createdAt)}</td>
+    </tr>`).join("");
+}
+
+window.filterRequests = function() {
+  const search = document.getElementById("req-search").value.toLowerCase();
+  const status = document.getElementById("req-status").value;
+  renderRequests(allRequests.filter(r =>
+    (!search ||
+      (r.requestId||"").toLowerCase().includes(search) ||
+      (r.vehiclePlate||"").toLowerCase().includes(search) ||
+      (r.ownerName||"").toLowerCase().includes(search)) &&
+    (!status || r.status === status)
+  ));
+};
+
+// ══════════════════════════
+// التقارير
+// ══════════════════════════
+async function loadReports() {
+  const snap  = await getDocs(query(collection(db,"reports"), orderBy("createdAt","desc"), limit(100)));
+  allReports  = [];
+  snap.forEach(d => allReports.push({ id:d.id, ...d.data() }));
+  renderReports(allReports);
+}
+
+function renderReports(list) {
+  const tbody = document.getElementById("reports-body");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد تقارير</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(r => `
+    <tr>
+      <td style="font-size:.78rem;color:var(--clr-text-3);font-family:monospace">${r.requestId?.slice(0,10)||"—"}</td>
+      <td>${r.techName||"—"}</td>
+      <td>${r.maintenanceType||"—"}</td>
+      <td style="font-size:.82rem;color:var(--clr-text-2)">${r.parts||"—"}</td>
+      <td style="font-weight:600">${r.cost ? Number(r.cost).toLocaleString("ar")+" ر.س" : "—"}</td>
+      <td><span class="badge ${r.condition === 'good' ? 'badge-done' : r.condition === 'needs_followup' ? 'badge-pending' : 'badge-cancelled'}">
+        ${CONDITION_LABELS[r.condition]||"—"}</span></td>
+      <td style="font-size:.82rem;color:var(--clr-text-3)">${formatDate(r.createdAt)}</td>
+    </tr>`).join("");
+}
+
+window.filterReports = function() {
+  const search = document.getElementById("rep-search").value.toLowerCase();
+  renderReports(allReports.filter(r =>
+    !search ||
+    (r.techName||"").toLowerCase().includes(search) ||
+    (r.requestId||"").toLowerCase().includes(search)
+  ));
+};
+
+// ══════════════════════════
+// حالة النظام
+// ══════════════════════════
+window.loadSystemStatus = async function() {
+  // إحصاءات Collections
+  const cols = ["users","vehicles","requests","reports","notifications","systemLogs","backups"];
+  const counts = await Promise.all(
+    cols.map(c => getDocs(collection(db,c)).then(s => s.size).catch(() => 0))
+  );
+
+  document.getElementById("collections-stats").innerHTML = cols.map((c,i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:10px 0;border-bottom:1px solid var(--clr-border)">
+      <span style="font-size:.875rem;color:var(--clr-text-2);font-family:monospace">${c}</span>
+      <span style="font-weight:600;color:var(--clr-text-1)">${counts[i].toLocaleString("ar")} سجل</span>
+    </div>`).join("");
+
+  // معلومات الجلسة
+  const user = auth.currentUser;
+  document.getElementById("session-info").innerHTML = [
+    { label:"المستخدم الحالي",  val: user?.email || "—" },
+    { label:"UID",              val: `<span style="font-family:monospace;font-size:.78rem">${user?.uid||"—"}</span>` },
+    { label:"وقت آخر تسجيل",   val: user?.metadata?.lastSignInTime || "—" },
+    { label:"الوقت الحالي",     val: new Date().toLocaleString("ar-SA") },
+    { label:"الاتصال",          val: navigator.onLine ? "✅ متصل" : "❌ غير متصل" },
+    { label:"Firebase Project", val: `<span style="font-family:monospace;font-size:.78rem">carmaintenance-33139</span>` },
+    { label:"Firestore Region", val: "me-west1 (Dammam) 🇸🇦" },
+  ].map(r => `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:10px 0;border-bottom:1px solid var(--clr-border);font-size:.875rem">
+      <span style="color:var(--clr-text-2)">${r.label}</span>
+      <span style="color:var(--clr-text-1)">${r.val}</span>
+    </div>`).join("");
+};
+
+</script>
+</body>
+</html>
