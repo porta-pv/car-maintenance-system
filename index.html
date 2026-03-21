@@ -65,18 +65,45 @@
   </div>
 
   <script type="module">
-    import { initRouter } from "./js/router.js";
+    import { auth, db } from "./js/firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // عرض خطأ في حالة الفشل
-    window.addEventListener("unhandledrejection", (e) => {
-      const el = document.getElementById("error-msg");
-      el.style.display = "block";
-      el.textContent = "حدث خطأ في الاتصال. يرجى تحديث الصفحة.";
-      document.getElementById("spinner").style.display = "none";
-      console.error(e.reason);
+    const BASE = "/car-maintenance-system";
+    const ROLE_PAGES = {
+      owner:     BASE + "/pages/owner.html",
+      tech:      BASE + "/pages/tech.html",
+      manager:   BASE + "/pages/admin.html",
+      it:        BASE + "/pages/it.html",
+      developer: BASE + "/pages/developer.html",
+    };
+
+    // انتظر 3 ثوانٍ كحد أقصى ثم وجّه لصفحة الدخول
+    const timeout = setTimeout(() => {
+      window.location.href = BASE + "/pages/login.html";
+    }, 3000);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        clearTimeout(timeout);
+        window.location.href = BASE + "/pages/login.html";
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        clearTimeout(timeout);
+        if (!snap.exists() || snap.data().frozen) {
+          await auth.signOut();
+          window.location.href = BASE + "/pages/login.html";
+          return;
+        }
+        const target = ROLE_PAGES[snap.data().role];
+        window.location.href = target || BASE + "/pages/login.html";
+      } catch {
+        clearTimeout(timeout);
+        window.location.href = BASE + "/pages/login.html";
+      }
     });
-
-    initRouter();
   </script>
 </body>
 </html>
