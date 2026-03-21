@@ -611,7 +611,7 @@ import {
 } from "../js/utils.js";
 import {
   collection, query, where, orderBy, limit,
-  getDocs, getDoc, addDoc, updateDoc, doc,
+  getDocs, getDoc, addDoc, setDoc, updateDoc, doc,
   serverTimestamp, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
@@ -871,7 +871,7 @@ window.createUser = async function() {
     const newUid = data.localId;
 
     // ── تسجيل في Firestore ──
-    await addDoc(collection(db, "users"), {
+    await setDoc(doc(db, "users", newUid), {
       uid: newUid, name, email, role,
       phone: phone || null, dept: dept || null,
       frozen: false,
