@@ -341,8 +341,9 @@
             <input class="form-input" type="text" id="nu-name" placeholder="الاسم كاملاً"/>
           </div>
           <div class="form-group">
-            <label class="form-label">البريد الإلكتروني <span style="color:#ef4444">*</span></label>
-            <input class="form-input" type="email" id="nu-email" placeholder="user@example.com" inputmode="email"/>
+            <label class="form-label">اسم المستخدم <span style="color:#ef4444">*</span></label>
+            <input class="form-input" type="text" id="nu-email" placeholder="مثال: tech01" autocomplete="off" style="direction:ltr;text-align:right"/>
+            <span style="font-size:.78rem;color:var(--clr-text-3);margin-top:3px;display:block">سيُنشأ البريد تلقائياً: اسم_المستخدم@pv.local</span>
           </div>
           <div class="form-group">
             <label class="form-label">كلمة المرور المؤقتة <span style="color:#ef4444">*</span></label>
@@ -835,14 +836,16 @@ window.generatePassword = function() {
 };
 
 window.createUser = async function() {
-  const name  = document.getElementById("nu-name").value.trim();
-  const email = document.getElementById("nu-email").value.trim();
-  const pass  = document.getElementById("nu-password").value;
-  const role  = document.getElementById("nu-role").value;
-  const phone = document.getElementById("nu-phone").value.trim();
-  const dept  = document.getElementById("nu-dept").value.trim();
+  const name     = document.getElementById("nu-name").value.trim();
+  const username = document.getElementById("nu-email").value.trim().toLowerCase().replace(/\s+/g,"");
+  const email    = username + "@pv.local";
+  const pass     = document.getElementById("nu-password").value;
+  const role     = document.getElementById("nu-role").value;
+  const phone    = document.getElementById("nu-phone").value.trim();
+  const dept     = document.getElementById("nu-dept").value.trim();
 
-  if (!name||!email||!pass||!role) { showToast("يرجى ملء الحقول المطلوبة", "error"); return; }
+  if (!name||!username||!pass||!role) { showToast("يرجى ملء الحقول المطلوبة", "error"); return; }
+  if (!/^[a-z0-9_]+$/.test(username)) { showToast("اسم المستخدم: أحرف إنجليزية وأرقام فقط بدون مسافات", "error"); return; }
   if (pass.length < 8) { showToast("كلمة المرور يجب أن تكون 8 أحرف على الأقل", "error"); return; }
 
   const btn = document.querySelector("#section-new-user .btn-primary");
@@ -872,7 +875,7 @@ window.createUser = async function() {
 
     // ── تسجيل في Firestore ──
     await setDoc(doc(db, "users", newUid), {
-      uid: newUid, name, email, role,
+      uid: newUid, name, username, email, role,
       phone: phone || null, dept: dept || null,
       frozen: false,
       createdAt: serverTimestamp(),
@@ -884,7 +887,7 @@ window.createUser = async function() {
     // ── عرض بيانات الحساب الجديد ──
     document.getElementById("created-user-info").innerHTML =
       `الاسم: <strong>${name}</strong><br/>
-       البريد: <strong>${email}</strong><br/>
+       اسم المستخدم: <strong style="font-family:monospace">${username}</strong><br/>
        الدور: <strong>${ROLE_LABELS[role] || role}</strong><br/>
        كلمة المرور المؤقتة: <strong style="font-family:monospace;font-size:1rem">${pass}</strong>`;
     document.getElementById("modal-user-created").style.display = "flex";
