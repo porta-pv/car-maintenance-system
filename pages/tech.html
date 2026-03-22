@@ -796,6 +796,18 @@ function buildRequestCard(r, isToday) {
 
     ${r.description ? `<div class="req-desc">${r.description}</div>` : ""}
 
+    ${r.status === "scheduled" && r.scheduledAt ? (() => {
+      const d = r.scheduledAt.toDate?.() || new Date(r.scheduledAt);
+      const diff = Math.ceil((new Date(d).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / (1000*60*60*24));
+      const dateStr = d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+      const timeStr = d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
+      const diffStr = diff > 0 ? " — بعد "+diff+" يوم" : diff === 0 ? " — اليوم!" : " — تجاوز الموعد";
+      return `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#1e40af;margin-bottom:10px">
+        📅 <strong>${dateStr} الساعة ${timeStr}${diffStr}</strong>
+        ${r.scheduleNote ? `<div style="margin-top:4px;font-size:.82rem;color:#1e3a8a">${r.scheduleNote}</div>` : ""}
+      </div>`;
+    })() : ""}
+
     <div class="req-actions">
       <button class="btn btn-ghost btn-sm" onclick="openRequestModal('${r.id}')">التفاصيل</button>
       ${isPending ? `
