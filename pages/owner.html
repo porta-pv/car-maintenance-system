@@ -1001,14 +1001,13 @@ function updateOpenBadge() {
 
 // مراقبة فورية للطلبات التي تحتاج اهتماماً
 function watchOwnerRequests() {
-  const q = query(collection(db,"requests"), where("ownerId","==",ownerUid));
+  const q = query(collection(db,"requests"), where("ownerId","==",ownerUid), orderBy("createdAt","desc"));
   onSnapshot(q, snap => {
     myRequests = [];
     snap.forEach(d => myRequests.push({ id:d.id, ...d.data() }));
     updateOpenBadge();
-    if (document.getElementById("section-requests")?.classList.contains("active")) {
-      renderMyRequests(myRequests);
-    }
+    // عرض الطلبات دائماً حتى تكون جاهزة عند الانتقال للقسم
+    renderMyRequests(myRequests);
   });
 }
 
