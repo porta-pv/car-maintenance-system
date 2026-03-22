@@ -989,39 +989,58 @@ window.rejectTransfer = async function(vId) {
 // طلبات الإفادة
 // ═══════════════════════════════
 async function loadInquiries() {
-  // نجلب طلبات الصيانة التي تحتوي على محادثات أو طُلبت فيها إفادة
-  const q = query(collection(db,"requests"),
-    where("hasInquiry","==",true),
-    orderBy("lastInquiryAt","desc"));
-  const snap = await getDocs(q);
   const list = document.getElementById("inquiry-list");
+  list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</div>`;
 
-  if (snap.empty) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div>لا توجد محادثات إفادة حتى الآن</div></div>`;
-    return;
-  }
+  try {
+    // فلترة محلية بدون compound query
+    const allSnap = await getDocs(
+      query(collection(db,"requests"), orderBy("createdAt","desc"), limit(200))
+    );
+    const rows = [];
+    allSnap.forEach(d => {
+      const r = d.data();
+      if (r.hasInquiry === true || r.unreadManager === true) {
+        rows.push({ id: d.id, ...r });
+      }
+    });
 
-  list.innerHTML = "";
-  snap.forEach(d => {
-    const r = { id: d.id, ...d.data() };
-    const card = document.createElement("div");
-    card.className = "card";
-    card.style.cursor = "pointer";
-    card.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <div>
-          <div style="font-weight:600;margin-bottom:3px">${r.requestId || r.id.slice(0,8)}</div>
-          <div style="font-size:.85rem;color:var(--clr-text-2)">
-            السيارة: ${r.vehiclePlate||"—"} · الفني: ${r.techName||"—"}
+    // ترتيب: الأحدث إفادة أولاً
+    rows.sort((a,b) => {
+      const ta = a.lastInquiryAt?.toDate?.()?.getTime() || 0;
+      const tb = b.lastInquiryAt?.toDate?.()?.getTime() || 0;
+      return tb - ta;
+    });
+
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div>لا توجد محادثات إفادة حتى الآن</div></div>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    rows.forEach(r => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.marginBottom = "12px";
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:600;margin-bottom:3px">${r.requestId || r.id.slice(0,8)}</div>
+            <div style="font-size:.85rem;color:var(--clr-text-2)">
+              السيارة: ${r.vehiclePlate||"—"} · الفني: ${r.techName||"—"} · ${r.maintenanceType||"—"}
+            </div>
           </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          ${r.unreadManager ? `<span class="badge badge-active">رسالة جديدة</span>` : ""}
-          <button class="btn btn-outline btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">فتح المحادثة</button>
-        </div>
-      </div>`;
-    list.appendChild(card);
-  });
+          <div style="display:flex;align-items:center;gap:8px">
+            ${r.unreadManager ? `<span class="badge badge-active">رسالة جديدة</span>` : ""}
+            <button class="btn btn-outline btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">فتح المحادثة</button>
+          </div>
+        </div>`;
+      list.appendChild(card);
+    });
+  } catch(e) {
+    console.error("خطأ في الإفادة:", e);
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--clr-text-3)">حدث خطأ في التحميل</div>`;
+  }
 }
 
 window.openInquiryModal = function(reqId, reqLabel) {
