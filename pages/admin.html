@@ -1005,10 +1005,12 @@ async function loadInquiries() {
       }
     });
 
-    // ترتيب: الأحدث إفادة أولاً
+    // ترتيب: الأحدث رداً في الأعلى — fallback لـ createdAt
     rows.sort((a,b) => {
-      const ta = a.lastInquiryAt?.toDate?.()?.getTime() || 0;
-      const tb = b.lastInquiryAt?.toDate?.()?.getTime() || 0;
+      const ta = a.lastInquiryAt?.toDate?.()?.getTime()
+              || a.createdAt?.toDate?.()?.getTime() || 0;
+      const tb = b.lastInquiryAt?.toDate?.()?.getTime()
+              || b.createdAt?.toDate?.()?.getTime() || 0;
       return tb - ta;
     });
 
