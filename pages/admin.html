@@ -412,10 +412,10 @@
         </div>
       </div>
 
-      <div class="card" style="margin-top:16px;background:#fffbeb;border-color:#fde68a;">
+      <div class="card" id="transfer-warning" style="margin-top:16px;background:#fffbeb;border-color:#fde68a;display:none">
         <p style="font-size:.875rem;color:#78350f;line-height:1.7;">
-          ⚠️ <strong>تنبيه:</strong> لا يمكن الموافقة على نقل ملكية سيارة تملك طلبات صيانة مفتوحة.
-          يجب إغلاق جميع الطلبات أو إلغاؤها قبل نقل الملكية.
+          ⚠️ <strong>تنبيه:</strong> لا يمكن الموافقة على نقل ملكية هذه السيارة — توجد طلبات صيانة مفتوحة.
+          يجب إغلاق جميع الطلبات أو إلغاؤها أولاً.
         </p>
       </div>
     </div>
@@ -794,13 +794,16 @@ function renderVehicles(list) {
 }
 
 window.filterVehicles = function() {
-  const search = document.getElementById("veh-search").value.toLowerCase();
+  const search = document.getElementById("veh-search").value.toLowerCase().trim();
   const status = document.getElementById("veh-filter-status").value;
   const filtered = allVehicles.filter(v => {
     const matchText = !search ||
       (v.plate||"").toLowerCase().includes(search) ||
       (v.make||"").toLowerCase().includes(search) ||
-      (v.ownerName||"").toLowerCase().includes(search);
+      (v.model||"").toLowerCase().includes(search) ||
+      (v.ownerName||"").toLowerCase().includes(search) ||
+      (v.year||"").toString().includes(search) ||
+      (v.color||"").toLowerCase().includes(search);
     const matchStatus = !status || v.status === status;
     return matchText && matchStatus;
   });
@@ -958,8 +961,10 @@ window.confirmTransfer = function(vId, plate, fromName, toName, toId) {
       if (!openSnap.empty) {
         showToast("لا يمكن النقل: توجد طلبات صيانة مفتوحة على هذه السيارة", "error");
         closeModal("modal-transfer");
+        document.getElementById("transfer-warning").style.display = "block";
         return;
       }
+      document.getElementById("transfer-warning").style.display = "none";
       await updateDoc(doc(db,"vehicles",vId), {
         ownerId:          toId,
         ownerName:        toName,
@@ -1171,69 +1176,76 @@ window.loadReports = async function() {
   const period  = document.getElementById("report-period").value;
   const now     = new Date();
   let startDate;
-
-  if (period === "month")   startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "month")        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
   else if (period === "quarter") startDate = new Date(now.getFullYear(), now.getMonth()-2, 1);
   else if (period === "year")    startDate = new Date(now.getFullYear(), 0, 1);
   else                           startDate = new Date(2020, 0, 1);
 
-  const startTs = Timestamp.fromDate(startDate);
-  const q = query(collection(db,"requests"),
-    where("status","==","done"),
-    where("closedAt",">=",startTs),
-    orderBy("closedAt","desc"));
+  try {
+    // جلب الكل وفلترة محلياً لتجنب مشكلة الـ index
+    const allSnap = await getDocs(
+      query(collection(db,"requests"), orderBy("createdAt","desc"), limit(500))
+    );
+    const allReqs = [];
+    allSnap.forEach(d => allReqs.push({ id:d.id, ...d.data() }));
 
-  const snap = await getDocs(q);
-  const rows = [];
-  snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+    // فلترة حسب الفترة
+    const inPeriod = allReqs.filter(r => {
+      const created = r.createdAt?.toDate?.();
+      return created && created >= startDate;
+    });
 
-  // الإحصاءات
-  const total   = rows.length;
-  const cost    = rows.reduce((s,r) => s + (Number(r.cost)||0), 0);
-  const avgDays = total === 0 ? 0 : Math.round(
-    rows.reduce((s,r) => {
-      const created = r.createdAt?.toDate?.()?.getTime() || 0;
-      const closed  = r.closedAt?.toDate?.()?.getTime()  || 0;
-      return s + (closed - created) / (1000*60*60*24);
-    }, 0) / total
-  );
+    const doneRows = inPeriod
+      .filter(r => r.status === "done")
+      .sort((a,b) => {
+        const ta = a.closedAt?.toDate?.()?.getTime() || 0;
+        const tb = b.closedAt?.toDate?.()?.getTime() || 0;
+        return tb - ta;
+      });
 
-  // إجمالي الطلبات في الفترة (مهما كانت حالتها)
-  const allQ = query(collection(db,"requests"), where("createdAt",">=",startTs), orderBy("createdAt"));
-  const allSnap = await getDocs(allQ);
-  const totalAll = allSnap.size;
+    const totalAll = inPeriod.length;
+    const total    = doneRows.length;
+    const cost     = doneRows.reduce((s,r) => s + (Number(r.cost)||0), 0);
+    const avgDays  = total === 0 ? 0 : Math.round(
+      doneRows.reduce((s,r) => {
+        const created = r.createdAt?.toDate?.()?.getTime() || 0;
+        const closed  = r.closedAt?.toDate?.()?.getTime()  || 0;
+        return s + (closed - created) / (1000*60*60*24);
+      }, 0) / total
+    );
 
-  document.getElementById("rep-total").textContent    = totalAll;
-  document.getElementById("rep-done").textContent     = total;
-  document.getElementById("rep-done-pct").textContent = totalAll
-    ? `${Math.round(total/totalAll*100)}% من إجمالي الطلبات` : "—";
-  document.getElementById("rep-cost").textContent     = cost.toLocaleString("ar");
-  document.getElementById("rep-avg-days").textContent = avgDays;
+    document.getElementById("rep-total").textContent    = totalAll;
+    document.getElementById("rep-done").textContent     = total;
+    document.getElementById("rep-done-pct").textContent = totalAll
+      ? `${Math.round(total/totalAll*100)}% من إجمالي الطلبات` : "—";
+    document.getElementById("rep-cost").textContent     = cost.toLocaleString("ar");
+    document.getElementById("rep-avg-days").textContent = avgDays;
 
-  // جدول التفاصيل
-  const tbody = document.getElementById("report-details-body");
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد بيانات في هذه الفترة</td></tr>`;
-    return;
+    const tbody = document.getElementById("report-details-body");
+    if (!doneRows.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد بيانات في هذه الفترة</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = doneRows.map(r => {
+      const created   = r.createdAt?.toDate?.()?.getTime() || 0;
+      const closed    = r.closedAt?.toDate?.()?.getTime()  || 0;
+      const daysTaken = created && closed
+        ? Math.max(0, Math.round((closed-created)/(1000*60*60*24))) : "—";
+      return `
+        <tr>
+          <td style="font-size:.8rem;color:var(--clr-text-3)">${r.requestId || r.id.slice(0,8)}</td>
+          <td>${r.vehiclePlate||"—"}</td>
+          <td>${r.maintenanceType||"—"}</td>
+          <td>${r.techName||"—"}</td>
+          <td>${r.cost ? Number(r.cost).toLocaleString("ar") : "—"}</td>
+          <td>${formatDate(r.closedAt)}</td>
+          <td>${typeof daysTaken === "number" ? daysTaken+" يوم" : "—"}</td>
+        </tr>`;
+    }).join("");
+  } catch(e) {
+    console.error("خطأ في التقارير:", e);
+    showToast("حدث خطأ في تحميل التقارير", "error");
   }
-
-  tbody.innerHTML = rows.map(r => {
-    const created = r.createdAt?.toDate?.()?.getTime() || 0;
-    const closed  = r.closedAt?.toDate?.()?.getTime()  || 0;
-    const daysTaken = created && closed
-      ? Math.max(0, Math.round((closed-created)/(1000*60*60*24)))
-      : "—";
-    return `
-      <tr>
-        <td style="font-size:.8rem;color:var(--clr-text-3)">${r.requestId || r.id.slice(0,8)}</td>
-        <td>${r.vehiclePlate||"—"}</td>
-        <td>${r.maintenanceType||"—"}</td>
-        <td>${r.techName||"—"}</td>
-        <td>${r.cost ? Number(r.cost).toLocaleString("ar") : "—"}</td>
-        <td>${formatDate(r.closedAt)}</td>
-        <td>${typeof daysTaken === "number" ? daysTaken+" يوم" : "—"}</td>
-      </tr>`;
-  }).join("");
 };
 
 window.exportReport = function() {
