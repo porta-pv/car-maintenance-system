@@ -841,7 +841,9 @@ function renderRequests(list) {
       <td>${r.maintenanceType || "—"}</td>
       <td>${statusBadge(r.status)}</td>
       <td>${r.status === "scheduled" && r.scheduledAt
-            ? `<span class="badge badge-scheduled">📅 ${adminFormatDate(r.scheduledAt)}<br/><span style="font-size:.72rem">${adminDaysUntil(r.scheduledAt)}</span></span>`
+            ? `<span class="badge badge-scheduled">📅 ${adminFormatDate(r.scheduledAt)}<br/><span style="font-size:.72rem">${adminDaysUntil(r.scheduledAt)}</span></span>
+               ${r.scheduleChangeAwaitingApproval ? `<br/><span class="badge badge-pending" style="font-size:.72rem;margin-top:3px">⏳ تغيير موعد بانتظار موافقة المالك</span>` : ""}
+               ${r.techScheduleChangeResult==="rejected" ? `<br/><span class="badge badge-cancelled" style="font-size:.72rem;margin-top:3px">❌ المالك رفض تغيير الموعد</span>` : ""}`
             : r.status !== "done" && r.status !== "cancelled"
             ? delayBadge(r.createdAt?.toDate?.() || new Date()) : "—"}</td>
       <td>

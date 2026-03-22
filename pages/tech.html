@@ -536,6 +536,35 @@
 </div>
 
 <!-- ══════════════════════════════════════
+     مودال: تغيير الموعد
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-change-schedule" style="display:none" onclick="closeModalOutside(event,'modal-change-schedule')">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title">طلب تغيير الموعد</div>
+    <input type="hidden" id="change-schedule-req-id"/>
+    <div style="background:#fef3c7;border-radius:var(--radius-md);padding:10px 12px;font-size:.85rem;color:#92400e;margin-bottom:14px">
+      ⚠️ سيُرسَل طلب تغيير الموعد لرئيس الهيئة للموافقة عليه.
+    </div>
+    <div class="form-group">
+      <label class="form-label">التاريخ الجديد <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="date" id="change-schedule-date"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الوقت الجديد <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="time" id="change-schedule-time"/>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">سبب التغيير (اختياري)</label>
+      <textarea class="form-textarea" id="change-schedule-note" rows="2" placeholder="اذكر سبب تغيير الموعد…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-change-schedule')">إلغاء</button>
+      <button class="btn btn-primary" onclick="submitScheduleChange()">إرسال طلب التغيير</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
      مودال: إعدادات صيانة السيارة
 ══════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-vehicle-settings" style="display:none" onclick="closeModalOutside(event,'modal-vehicle-settings')">
@@ -802,9 +831,16 @@ function buildRequestCard(r, isToday) {
       const dateStr = d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
       const timeStr = d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
       const diffStr = diff > 0 ? " — بعد "+diff+" يوم" : diff === 0 ? " — اليوم!" : " — تجاوز الموعد";
+      const changeResult = r.techScheduleChangeResult;
+      const awaitingApproval = r.scheduleChangeAwaitingApproval;
+      let extra = "";
+      if (awaitingApproval) extra = `<div style="margin-top:6px;font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد الجديد</div>`;
+      else if (changeResult==="approved") extra = `<div style="margin-top:6px;font-size:.82rem;color:#065f46;background:#d1fae5;border-radius:4px;padding:4px 8px">✅ وافق رئيس الهيئة على الموعد الجديد</div>`;
+      else if (changeResult==="rejected") extra = `<div style="margin-top:6px;font-size:.82rem;color:#991b1b;background:#fee2e2;border-radius:4px;padding:4px 8px">❌ رفض رئيس الهيئة تغيير الموعد</div>`;
       return `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#1e40af;margin-bottom:10px">
         📅 <strong>${dateStr} الساعة ${timeStr}${diffStr}</strong>
         ${r.scheduleNote ? `<div style="margin-top:4px;font-size:.82rem;color:#1e3a8a">${r.scheduleNote}</div>` : ""}
+        ${extra}
       </div>`;
     })() : ""}
 
@@ -823,6 +859,7 @@ function buildRequestCard(r, isToday) {
       ` : ""}
       ${r.status === "scheduled" ? `
         <button class="btn btn-outline btn-sm" onclick="startRequest('${r.id}')">بدء التنفيذ</button>
+        <button class="btn btn-ghost btn-sm" onclick="openChangeScheduleModal('${r.id}')">تغيير الموعد</button>
       ` : ""}
       ${isOpen || r.status === "scheduled" ? `
         <button class="btn btn-ghost btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">💬 إفادة</button>
@@ -1304,6 +1341,41 @@ window.confirmReject = async function() {
     });
     showToast("تم رفض الطلب", "info");
     closeModal("modal-reject");
+    await loadAllRequests();
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+// ══════════════════════════
+// تغيير الموعد (بانتظار موافقة المالك)
+// ══════════════════════════
+window.openChangeScheduleModal = function(reqId) {
+  document.getElementById("change-schedule-req-id").value = reqId;
+  document.getElementById("change-schedule-date").value   = "";
+  document.getElementById("change-schedule-time").value   = "";
+  document.getElementById("change-schedule-note").value   = "";
+  document.getElementById("change-schedule-date").min = new Date().toISOString().split("T")[0];
+  document.getElementById("modal-change-schedule").style.display = "flex";
+};
+
+window.submitScheduleChange = async function() {
+  const reqId = document.getElementById("change-schedule-req-id").value;
+  const date  = document.getElementById("change-schedule-date").value;
+  const time  = document.getElementById("change-schedule-time").value;
+  const note  = document.getElementById("change-schedule-note").value.trim();
+  if (!date || !time) { showToast("يرجى تحديد التاريخ والوقت", "error"); return; }
+  try {
+    const newScheduledAt = new Date(date + "T" + time);
+    await updateDoc(doc(db,"requests",reqId), {
+      scheduleChangeAwaitingApproval: true,
+      scheduleChangeApproved:         null,
+      techScheduleChangeResult:       null,
+      newScheduledAt:                 Timestamp.fromDate(newScheduledAt),
+      newScheduleNote:                note || null,
+      scheduleChangeRequestedAt:      serverTimestamp(),
+      scheduleChangeRequestedBy:      techUid,
+    });
+    showToast("تم إرسال طلب تغيير الموعد لرئيس الهيئة", "success");
+    closeModal("modal-change-schedule");
     await loadAllRequests();
   } catch { showToast("حدث خطأ", "error"); }
 };
