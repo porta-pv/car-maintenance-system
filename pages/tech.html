@@ -1072,19 +1072,24 @@ window.loadInquiries = async function() {
   list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</div>`;
 
   try {
-    // جلب الطلبات التي فيها محادثات (hasInquiry) أو رسائل غير مقروءة (unreadTech)
-    const [snap1, snap2] = await Promise.all([
-      getDocs(query(collection(db,"requests"), where("hasInquiry","==",true), orderBy("lastInquiryAt","desc"), limit(50))),
-      getDocs(query(collection(db,"requests"), where("unreadTech","==",true), limit(50))),
-    ]);
-
-    // دمج النتيجتين بدون تكرار
+    // جلب الطلبات بدون compound query لتجنب مشكلة الـ index
+    const allSnap = await getDocs(
+      query(collection(db,"requests"), orderBy("createdAt","desc"), limit(200))
+    );
     const seen = new Set();
     const rows = [];
-    [snap1, snap2].forEach(snap => {
-      snap.forEach(d => {
-        if (!seen.has(d.id)) { seen.add(d.id); rows.push({ id:d.id, ...d.data() }); }
-      });
+    allSnap.forEach(d => {
+      const r = d.data();
+      if (!seen.has(d.id) && (r.hasInquiry === true || r.unreadTech === true)) {
+        seen.add(d.id);
+        rows.push({ id:d.id, ...r });
+      }
+    });
+    // ترتيب: الأحدث إفادة أولاً
+    rows.sort((a,b) => {
+      const ta = a.lastInquiryAt?.toDate?.()?.getTime() || 0;
+      const tb = b.lastInquiryAt?.toDate?.()?.getTime() || 0;
+      return tb - ta;
     });
 
     if (!rows.length) {
