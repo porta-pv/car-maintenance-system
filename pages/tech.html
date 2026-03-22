@@ -691,6 +691,10 @@ function watchInquiryBadge() {
     } else {
       badge.style.display = "none";
     }
+    // إذا كان المستخدم في قسم الإفادة → حدّث القائمة تلقائياً
+    if (document.getElementById("section-inquiry")?.classList.contains("active")) {
+      window.loadInquiries();
+    }
   });
 }
 
