@@ -912,13 +912,15 @@ function renderMyRequests(list) {
     };
     return priority(a) - priority(b);
   });
-  container.innerHTML = sorted.map(r => {
+  container.innerHTML = "";
+  sorted.forEach(r => {
+    try {
     const isDone       = r.status === "done";
     const needsConfirm = isDone && !r.ownerConfirmed;
     const isOpen       = ["pending","accepted","in_progress"].includes(r.status);
     const awaitingScheduleApproval = r.scheduleChangeAwaitingApproval === true;
-
-    return `
+    const card = document.createElement("div");
+    card.innerHTML = `
     <div class="req-card">
       <div class="req-card-header">
         <div>
@@ -974,7 +976,10 @@ function renderMyRequests(list) {
         </div>
       </div>
     </div>`;
-  }).join("");
+    `;
+    container.appendChild(card.firstElementChild);
+    } catch(e) { console.error("خطأ في بطاقة الطلب:", e); }
+  });
 }
 
 function daysDiff(ts) {
@@ -1150,9 +1155,11 @@ window.openTransferModal = async function(vId, plate) {
 // ══════════════════════════
 function formatScheduledDate(ts) {
   if (!ts) return "—";
-  const d = ts.toDate?.() || new Date(ts);
-  return d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" })
-    + " — " + d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
+  try {
+    const d = ts.toDate?.() || new Date(ts);
+    return d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" })
+      + " — " + d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
+  } catch { return "—"; }
 }
 
 function daysUntil(ts) {
