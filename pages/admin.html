@@ -841,9 +841,7 @@ function renderRequests(list) {
             ? delayBadge(r.createdAt?.toDate?.() || new Date()) : "—"}</td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="openRequestModal('${r.id}')">عرض</button>
-        ${r.status === "in_progress" || r.status === "accepted" || r.status === "scheduled"
-          ? `<button class="btn btn-outline btn-sm" style="margin-top:3px" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">إفادة</button>`
-          : ""}
+        <button class="btn btn-outline btn-sm" style="margin-top:3px" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">إفادة</button>
       </td>
     </tr>`).join("");
 }

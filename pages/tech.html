@@ -1068,42 +1068,60 @@ window.searchVehicleHistory = async function() {
 // الإفادة مع المدير
 // ══════════════════════════
 window.loadInquiries = async function() {
-  const q = query(collection(db,"requests"),
-    where("hasInquiry","==",true),
-    orderBy("lastInquiryAt","desc"));
-  const snap = await getDocs(q);
   const list = document.getElementById("inquiry-list");
+  list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</div>`;
 
-  if (snap.empty) {
-    list.innerHTML = `<div class="empty-state" style="text-align:center;color:var(--clr-text-3)">
-      <div style="font-size:2rem;margin-bottom:8px">💬</div>
-      <div>لا توجد محادثات إفادة حتى الآن</div>
-      <div style="font-size:.85rem;margin-top:6px">ابدأ إفادة من أي طلب نشط</div>
-    </div>`;
-    return;
-  }
+  try {
+    // جلب الطلبات التي فيها محادثات (hasInquiry) أو رسائل غير مقروءة (unreadTech)
+    const [snap1, snap2] = await Promise.all([
+      getDocs(query(collection(db,"requests"), where("hasInquiry","==",true), orderBy("lastInquiryAt","desc"), limit(50))),
+      getDocs(query(collection(db,"requests"), where("unreadTech","==",true), limit(50))),
+    ]);
 
-  list.innerHTML = "";
-  snap.forEach(d => {
-    const r   = { id: d.id, ...d.data() };
-    const div = document.createElement("div");
-    div.className = "card";
-    div.style.marginBottom = "12px";
-    div.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div>
-          <div style="font-weight:600">${r.requestId||r.id.slice(0,8)}</div>
-          <div style="font-size:.85rem;color:var(--clr-text-2)">السيارة: ${r.vehiclePlate||"—"}</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${r.unreadTech ? `<span class="badge badge-active">رسالة جديدة من المدير</span>` : ""}
-          <button class="btn btn-outline btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">
-            فتح المحادثة
-          </button>
-        </div>
+    // دمج النتيجتين بدون تكرار
+    const seen = new Set();
+    const rows = [];
+    [snap1, snap2].forEach(snap => {
+      snap.forEach(d => {
+        if (!seen.has(d.id)) { seen.add(d.id); rows.push({ id:d.id, ...d.data() }); }
+      });
+    });
+
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty-state" style="text-align:center;color:var(--clr-text-3)">
+        <div style="font-size:2rem;margin-bottom:8px">💬</div>
+        <div>لا توجد محادثات إفادة حتى الآن</div>
+        <div style="font-size:.85rem;margin-top:6px">ابدأ إفادة من أي طلب نشط</div>
       </div>`;
-    list.appendChild(div);
-  });
+      return;
+    }
+
+    list.innerHTML = "";
+    rows.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.style.marginBottom = "12px";
+      div.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:600">${r.requestId||r.id.slice(0,8)}</div>
+            <div style="font-size:.85rem;color:var(--clr-text-2)">
+              السيارة: ${r.vehiclePlate||"—"} · ${r.maintenanceType||"—"}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${r.unreadTech ? `<span class="badge badge-active">رسالة جديدة من المدير</span>` : ""}
+            <button class="btn btn-outline btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||r.id.slice(0,8)}')">
+              فتح المحادثة
+            </button>
+          </div>
+        </div>`;
+      list.appendChild(div);
+    });
+  } catch(e) {
+    console.error("خطأ في الإفادة:", e);
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--clr-text-3)">حدث خطأ في التحميل</div>`;
+  }
 };
 
 window.openInquiryModal = function(reqId, reqLabel) {
