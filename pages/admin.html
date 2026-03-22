@@ -693,44 +693,43 @@ window.closeModalOutside = (e, id) => { if (e.target.id === id) closeModal(id); 
 // النظرة العامة
 // ═══════════════════════════════
 async function loadOverview() {
-  const now       = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const msTs      = Timestamp.fromDate(monthStart);
+  try {
+    const now        = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // طلبات مفتوحة
-  const openQ  = query(collection(db,"requests"), where("status","in",["pending","accepted","in_progress"]));
-  const doneQ  = query(collection(db,"requests"), where("status","==","done"), where("closedAt",">=",msTs));
-  const vehQ   = collection(db,"vehicles");
+    // جلب الكل ثم فلترة محلياً لتجنب مشكلة الـ index
+    const [allReqSnap, vehSnap] = await Promise.all([
+      getDocs(query(collection(db,"requests"), orderBy("createdAt","desc"), limit(500))),
+      getDocs(collection(db,"vehicles"))
+    ]);
 
-  const [openSnap, doneSnap, vehSnap] = await Promise.all([
-    getDocs(openQ), getDocs(doneQ), getDocs(vehQ)
-  ]);
+    const allReqs = [];
+    allReqSnap.forEach(d => allReqs.push({ id:d.id, ...d.data() }));
 
-  document.getElementById("stat-vehicles").textContent = vehSnap.size;
-  document.getElementById("stat-open").textContent     = openSnap.size;
-  document.getElementById("stat-done").textContent     = doneSnap.size;
+    const openReqs  = allReqs.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
+    const doneMonth = allReqs.filter(r => {
+      if (r.status !== "done") return false;
+      const closed = r.closedAt?.toDate?.();
+      return closed && closed >= monthStart;
+    });
+    const limit14 = new Date(Date.now() - 14*24*60*60*1000);
+    const overdue = openReqs.filter(r => {
+      const created = r.createdAt?.toDate?.();
+      return created && created < limit14;
+    }).length;
 
-  // متأخرة +14 يوم
-  const limit14 = new Date(Date.now() - 14*24*60*60*1000);
-  let overdue = 0;
-  openSnap.forEach(d => {
-    const createdAt = d.data().createdAt?.toDate?.();
-    if (createdAt && createdAt < limit14) overdue++;
-  });
-  document.getElementById("stat-overdue").textContent = overdue;
+    document.getElementById("stat-vehicles").textContent = vehSnap.size;
+    document.getElementById("stat-open").textContent     = openReqs.length;
+    document.getElementById("stat-done").textContent     = doneMonth.length;
+    document.getElementById("stat-overdue").textContent  = overdue;
 
-  // آخر 10 طلبات
-  const lastQ = query(collection(db,"requests"), orderBy("createdAt","desc"), limit(10));
-  const lastSnap = await getDocs(lastQ);
-  const rows = [];
-  lastSnap.forEach(d => {
-    const r = { id: d.id, ...d.data() };
-    rows.push(r);
-  });
-  renderOverviewRequests(rows);
-
-  // شارة الطلبات المعلّقة
-  updatePendingBadge(openSnap.size);
+    // آخر 10 طلبات
+    renderOverviewRequests(allReqs.slice(0, 10));
+    updatePendingBadge(openReqs.length);
+  } catch(e) {
+    console.error("خطأ في النظرة العامة:", e);
+    showToast("حدث خطأ في تحميل الإحصاءات", "error");
+  }
 }
 
 function renderOverviewRequests(rows) {

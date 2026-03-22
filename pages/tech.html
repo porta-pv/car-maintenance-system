@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>لوحة الفني — نظام الصيانة</title>
+  <link rel="stylesheet" href="../styles/main.css"/>
+  <style>
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ——— رأس القسم ——— */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .section-title { font-size: 1.15rem; font-weight: 700; }
+
+    /* ——— بطاقة طلب (اللوحة اليومية) ——— */
+    .req-card {
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--transition), border-color var(--transition);
+    }
+    .req-card:hover { box-shadow: var(--shadow-md); border-color: var(--clr-border-md); }
+    .req-card.priority-urgent { border-right: 4px solid #ef4444; }
+    .req-card.priority-normal  { border-right: 4px solid var(--clr-primary); }
+
+    .req-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .req-plate {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--clr-text-1);
+      letter-spacing: .04em;
+    }
+    .req-type {
+      font-size: .875rem;
+      color: var(--clr-text-2);
+      margin-top: 2px;
+    }
+    .req-id {
+      font-size: .75rem;
+      color: var(--clr-text-3);
+      font-family: monospace;
+    }
+    .req-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: .82rem;
+      color: var(--clr-text-3);
+      margin-bottom: 10px;
+    }
+    .req-desc {
+      font-size: .875rem;
+      color: var(--clr-text-2);
+      background: var(--clr-bg);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .req-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ——— فلاتر ——— */
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .filter-select, .search-input {
+      padding: 7px 10px;
+      border: 1px solid var(--clr-border-md);
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: .85rem;
+      color: var(--clr-text-1);
+      background: var(--clr-surface);
+    }
+    .search-input { width: 200px; text-align: right; }
+    .filter-select:focus, .search-input:focus {
+      outline: none; border-color: var(--clr-primary);
+    }
+
+    /* ——— تبويبات اليوم ——— */
+    .day-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .day-tab {
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: .85rem;
+      font-weight: 500;
+      border: 1px solid var(--clr-border-md);
+      background: var(--clr-surface);
+      color: var(--clr-text-2);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .day-tab.active {
+      background: var(--clr-primary);
+      color: #fff;
+      border-color: var(--clr-primary);
+    }
+
+    /* ——— نموذج التقرير ——— */
+    .report-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .cost-input-wrap {
+      position: relative;
+    }
+    .cost-input-wrap input {
+      padding-left: 48px;
+    }
+    .cost-currency {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .85rem;
+      color: var(--clr-text-3);
+      pointer-events: none;
+    }
+
+    /* ——— سجل السيارة ——— */
+    .vehicle-history-card {
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      margin-bottom: 10px;
+    }
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .history-type { font-weight: 600; font-size: .9rem; }
+    .history-date { font-size: .8rem; color: var(--clr-text-3); }
+    .history-report {
+      font-size: .85rem;
+      color: var(--clr-text-2);
+      line-height: 1.6;
+    }
+
+    /* ——— محادثة الإفادة ——— */
+    .chat-box {
+      background: var(--clr-bg);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .chat-msg {
+      max-width: 80%;
+      padding: 9px 13px;
+      border-radius: var(--radius-md);
+      font-size: .875rem;
+      line-height: 1.5;
+    }
+    .chat-msg.tech {
+      background: var(--clr-primary);
+      color: #fff;
+      align-self: flex-start;
+      border-bottom-right-radius: 3px;
+    }
+    .chat-msg.manager {
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      color: var(--clr-text-1);
+      align-self: flex-end;
+      border-bottom-left-radius: 3px;
+    }
+    .chat-meta { font-size: .72rem; color: var(--clr-text-3); margin-top: 4px; }
+    .chat-send { display: flex; gap: 8px; }
+    .chat-send textarea {
+      flex: 1; resize: none; min-height: 44px; max-height: 100px;
+      padding: 9px 12px; border: 1px solid var(--clr-border-md);
+      border-radius: var(--radius-md); font-family: inherit;
+      font-size: .875rem; text-align: right;
+    }
+    .chat-send textarea:focus { outline: none; border-color: var(--clr-primary); }
+
+    /* ——— حالات الطلب بألوان مميزة ——— */
+    .status-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      font-size: .875rem;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all var(--transition);
+    }
+    .status-step:hover { border-color: var(--clr-primary); background: var(--clr-primary-lt); }
+    .status-step.current { border-color: var(--clr-primary); background: var(--clr-primary-lt); font-weight: 600; }
+    .status-dot-lg {
+      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* ——— إحصاءات الفني ——— */
+    .stat-card.accent-blue   { border-top: 3px solid var(--clr-primary); }
+    .stat-card.accent-green  { border-top: 3px solid #10b981; }
+    .stat-card.accent-amber  { border-top: 3px solid #f59e0b; }
+    .stat-card.accent-purple { border-top: 3px solid #7c3aed; }
+
+    /* ——— جوال ——— */
+    @media (max-width: 768px) {
+      .search-input { width: 100%; }
+      .req-actions { width: 100%; }
+      .req-actions .btn { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ——— الرأس ——— -->
+  <header class="app-header">
+    <span class="logo">🚗 نظام الصيانة</span>
+    <span style="font-size:.8rem;color:var(--clr-text-3);background:var(--clr-bg);padding:3px 10px;border-radius:999px;">
+      فني
+    </span>
+    <div class="user-info">
+      <span class="user-name" id="hdr-name">…</span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">خروج</button>
+    </div>
+  </header>
+
+  <!-- ——— الشريط الجانبي ——— -->
+  <nav class="app-sidebar">
+    <div class="nav-section">
+      <div class="nav-section-title">العمل اليومي</div>
+      <button class="nav-item active" id="nav-today" onclick="showSection('today')">
+        <span class="nav-icon">📋</span> لوحتي اليومية
+        <span id="badge-today" style="margin-right:auto;background:#eff6ff;color:#1e40af;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
+      </button>
+      <button class="nav-item" id="nav-requests" onclick="showSection('requests')">
+        <span class="nav-icon">🔧</span> جميع الطلبات
+        <span id="badge-pending" style="margin-right:auto;background:#fef3c7;color:#92400e;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">الأدوات</div>
+      <button class="nav-item" id="nav-history" onclick="showSection('history')">
+        <span class="nav-icon">🚗</span> سجل السيارة
+      </button>
+      <button class="nav-item" id="nav-inquiry" onclick="showSection('inquiry');loadInquiries()">
+        <span class="nav-icon">💬</span> الإفادة مع المدير
+        <span id="badge-inquiry" style="margin-right:auto;background:#fee2e2;color:#991b1b;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">!</span>
+      </button>
+      <button class="nav-item" id="nav-stats" onclick="showSection('stats')">
+        <span class="nav-icon">📊</span> إحصاءاتي
+      </button>
+    </div>
+  </nav>
+
+  <!-- ——— المحتوى ——— -->
+  <main class="app-main">
+
+    <!-- ══ اللوحة اليومية ══ -->
+    <div class="section active" id="section-today">
+      <div class="section-header">
+        <h2 class="section-title">لوحتي اليومية</h2>
+        <span id="today-date" style="font-size:.85rem;color:var(--clr-text-3)"></span>
+      </div>
+
+      <!-- تبويبات التصفية -->
+      <div class="day-tabs">
+        <button class="day-tab active" id="tab-all"       onclick="filterToday('all')">الكل</button>
+        <button class="day-tab"        id="tab-pending"   onclick="filterToday('pending')">بانتظار القبول</button>
+        <button class="day-tab"        id="tab-active"    onclick="filterToday('active')">قيد التنفيذ</button>
+        <button class="day-tab"        id="tab-urgent"    onclick="filterToday('urgent')">عاجل</button>
+      </div>
+
+      <div id="today-list">
+        <div style="text-align:center;padding:32px;color:var(--clr-text-3)">جارٍ التحميل…</div>
+      </div>
+    </div>
+
+    <!-- ══ جميع الطلبات ══ -->
+    <div class="section" id="section-requests">
+      <div class="section-header">
+        <h2 class="section-title">جميع الطلبات</h2>
+        <div class="filters">
+          <input class="search-input" type="search" id="req-search" placeholder="بحث…" oninput="filterAllRequests()"/>
+          <select class="filter-select" id="req-status-filter" onchange="filterAllRequests()">
+            <option value="">جميع الحالات</option>
+            <option value="pending">بانتظار القبول</option>
+            <option value="accepted">مقبول</option>
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="done">منجز</option>
+            <option value="cancelled">ملغي</option>
+          </select>
+        </div>
+      </div>
+      <div id="all-requests-list">
+        <div style="text-align:center;padding:32px;color:var(--clr-text-3)">جارٍ التحميل…</div>
+      </div>
+    </div>
+
+    <!-- ══ سجل السيارة ══ -->
+    <div class="section" id="section-history">
+      <div class="section-header">
+        <h2 class="section-title">سجل السيارة</h2>
+      </div>
+      <div class="card" style="margin-bottom:16px;max-width:500px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">ابحث بلوحة السيارة أو اسم المالك</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" type="text" id="history-search-input" placeholder="مثال: أ ب ج 1234" style="flex:1"/>
+            <button class="btn btn-primary" onclick="searchVehicleHistory()">بحث</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="history-vehicle-info" style="display:none">
+        <!-- معلومات السيارة -->
+        <div class="card" style="margin-bottom:14px" id="history-veh-card"></div>
+        <!-- سجل الطلبات -->
+        <div id="history-requests-list"></div>
+      </div>
+
+      <div id="history-empty" class="empty-state" style="text-align:center;color:var(--clr-text-3);display:none">
+        <div style="font-size:2rem;margin-bottom:8px">🔍</div>
+        <div>لا توجد نتائج لهذا البحث</div>
+      </div>
+    </div>
+
+    <!-- ══ الإفادة مع المدير ══ -->
+    <div class="section" id="section-inquiry">
+      <div class="section-header">
+        <h2 class="section-title">الإفادة مع المدير</h2>
+        <p style="font-size:.85rem;color:var(--clr-text-3);margin:0">
+          محادثات خاصة — لا يراها رئيس الهيئة
+        </p>
+      </div>
+      <div id="inquiry-list">
+        <div style="text-align:center;padding:32px;color:var(--clr-text-3)">جارٍ التحميل…</div>
+      </div>
+    </div>
+
+    <!-- ══ إحصاءاتي ══ -->
+    <div class="section" id="section-stats">
+      <div class="section-header">
+        <h2 class="section-title">إحصاءاتي</h2>
+        <select class="filter-select" id="stats-period" onchange="loadMyStats()">
+          <option value="month">هذا الشهر</option>
+          <option value="quarter">آخر 3 أشهر</option>
+          <option value="all">الكل</option>
+        </select>
+      </div>
+
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card accent-blue">
+          <div class="stat-label">طلبات أنجزتها</div>
+          <div class="stat-value" id="my-done">—</div>
+          <div class="stat-sub">في الفترة المحددة</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">قيد التنفيذ الآن</div>
+          <div class="stat-value" id="my-active">—</div>
+          <div class="stat-sub">طلبات مفتوحة</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">إجمالي التكاليف</div>
+          <div class="stat-value" id="my-cost">—</div>
+          <div class="stat-sub">ريال سعودي</div>
+        </div>
+        <div class="stat-card accent-purple">
+          <div class="stat-label">متوسط التقييم</div>
+          <div class="stat-value" id="my-rating">—</div>
+          <div class="stat-sub">من 5 نجوم</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">آخر الطلبات المنجزة</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>السيارة</th>
+                <th>نوع الصيانة</th>
+                <th>التكلفة</th>
+                <th>التقييم</th>
+                <th>تاريخ الإنجاز</th>
+              </tr>
+            </thead>
+            <tbody id="my-done-body">
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════
+     مودال: تفاصيل الطلب + إجراءات الفني
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-request" style="display:none" onclick="closeModalOutside(event,'modal-request')">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-title" id="modal-req-title">تفاصيل الطلب</div>
+    <div id="modal-req-content"></div>
+    <div class="modal-footer" id="modal-req-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-request')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     مودال: كتابة التقرير والتكلفة
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-report" style="display:none" onclick="closeModalOutside(event,'modal-report')">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-title">تقرير الصيانة</div>
+    <input type="hidden" id="report-req-id"/>
+
+    <div class="report-form">
+      <div class="form-group">
+        <label class="form-label">تقرير الأعمال المنجزة <span style="color:#ef4444">*</span></label>
+        <textarea class="form-textarea" id="report-text" rows="4"
+          placeholder="اشرح ما تم إنجازه بالتفصيل…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">قطع الغيار المستخدمة</label>
+        <input class="form-input" type="text" id="report-parts"
+          placeholder="مثال: فلتر زيت، زيت محرك 4L…"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">التكلفة الإجمالية (ر.س) <span style="color:#ef4444">*</span></label>
+        <div class="cost-input-wrap">
+          <input class="form-input" type="number" id="report-cost"
+            placeholder="0" min="0" inputmode="numeric"/>
+          <span class="cost-currency">ر.س</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">الحالة بعد الإنجاز</label>
+        <select class="form-select" id="report-condition">
+          <option value="good">جيدة — لا تحتاج صيانة إضافية</option>
+          <option value="needs_followup">تحتاج متابعة قريبة</option>
+          <option value="needs_major">تحتاج صيانة كبرى</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-report')">إلغاء</button>
+      <button class="btn btn-primary" onclick="submitReport()">إرسال التقرير وإغلاق الطلب</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     مودال: تحديد موعد
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-schedule" style="display:none" onclick="closeModalOutside(event,'modal-schedule')">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title">تحديد موعد للصيانة</div>
+    <input type="hidden" id="schedule-req-id"/>
+    <div class="form-group">
+      <label class="form-label">تاريخ الموعد <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="date" id="schedule-date"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">وقت الموعد <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="time" id="schedule-time"/>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">ملاحظة للمالك (اختياري)</label>
+      <textarea class="form-textarea" id="schedule-note" rows="2" placeholder="مثال: أحضر السيارة الساعة 9 صباحاً…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-schedule')">إلغاء</button>
+      <button class="btn btn-primary" onclick="confirmSchedule()">تأكيد الموعد</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     مودال: رفض الطلب
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-reject" style="display:none" onclick="closeModalOutside(event,'modal-reject')">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-title">رفض الطلب</div>
+    <input type="hidden" id="reject-req-id"/>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">سبب الرفض <span style="color:#ef4444">*</span></label>
+      <textarea class="form-textarea" id="reject-reason" rows="3" placeholder="اذكر سبب الرفض…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reject')">إلغاء</button>
+      <button class="btn btn-danger" onclick="confirmReject()">رفض الطلب</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     مودال: إعدادات صيانة السيارة
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-vehicle-settings" style="display:none" onclick="closeModalOutside(event,'modal-vehicle-settings')">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">إعدادات صيانة السيارة</div>
+    <input type="hidden" id="vs-vehicle-id"/>
+    <div id="vs-vehicle-info" style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:.875rem;color:var(--clr-text-2)"></div>
+    <div class="form-group">
+      <label class="form-label">تغيير الزيت كل (كم)</label>
+      <select class="form-select" id="vs-oil-interval">
+        <option value="0">غير محدد (لا تنبيه)</option>
+        <option value="5000">5,000 كم</option>
+        <option value="7500">7,500 كم</option>
+        <option value="10000">10,000 كم</option>
+        <option value="15000">15,000 كم</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">آخر تغيير زيت عند (كم)</label>
+      <input class="form-input" type="number" id="vs-last-oil" placeholder="مثال: 80000" min="0" inputmode="numeric"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الفحص الدوري كل (كم)</label>
+      <select class="form-select" id="vs-check-interval">
+        <option value="0">غير محدد (لا تنبيه)</option>
+        <option value="10000">10,000 كم</option>
+        <option value="15000">15,000 كم</option>
+        <option value="20000">20,000 كم</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">آخر فحص دوري عند (كم)</label>
+      <input class="form-input" type="number" id="vs-last-check" placeholder="مثال: 75000" min="0" inputmode="numeric"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-vehicle-settings')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveVehicleSettings()">حفظ الإعدادات</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     مودال: الإفادة (محادثة مع المدير)
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-inquiry" style="display:none" onclick="closeModalOutside(event,'modal-inquiry')">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-title" id="inq-modal-title">إفادة</div>
+    <div class="chat-box" id="inq-chat-box"></div>
+    <div class="chat-send">
+      <textarea id="inq-msg-input" placeholder="اكتب رسالتك للمدير…" rows="2"></textarea>
+      <button class="btn btn-primary" onclick="sendInquiryMsg()" style="align-self:flex-end">إرسال</button>
+    </div>
+    <div class="modal-footer" style="margin-top:12px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-inquiry');if(unsubInquiry)unsubInquiry()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     JavaScript
+════════════════════════════════════════ -->
+<script type="module">
+import { auth, db }    from "../js/firebase.js";
+import { requireRole } from "../js/router.js";
+import {
+  showToast, statusBadge, delayBadge,
+  formatDate, formatDateTime, logout as doLogoutFn
+} from "../js/utils.js";
+import {
+  collection, query, where, orderBy, limit,
+  getDocs, getDoc, addDoc, updateDoc, doc,
+  onSnapshot, serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ——— الحالة ———
+let techUid   = "";
+let techData  = {};
+let allRequests  = [];
+let todayFilter  = "all";
+let currentInqId = null;
+let unsubInquiry = null;
+
+// ——— بوابة الدخول ———
+(async () => {
+  try {
+    const { user, userData } = await requireRole("tech");
+    techUid  = user.uid;
+    techData = userData;
+    document.getElementById("hdr-name").textContent = userData.name || user.email;
+    document.getElementById("today-date").textContent =
+      new Date().toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+    await Promise.all([loadAllRequests(), loadMyStats()]);
+  } catch (e) { console.error(e); }
+})();
+
+// ══════════════════════════
+// التنقل
+// ══════════════════════════
+window.showSection = function(name) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+  document.getElementById("section-" + name).classList.add("active");
+  const nav = document.getElementById("nav-" + name);
+  if (nav) nav.classList.add("active");
+};
+window.doLogout = () => doLogoutFn();
+window.closeModal = id => { document.getElementById(id).style.display = "none"; };
+window.closeModalOutside = (e,id) => { if (e.target.id===id) closeModal(id); };
+window.unsubInquiry = null;
+
+// ══════════════════════════
+// تحميل الطلبات
+// ══════════════════════════
+async function loadAllRequests() {
+  const q    = query(collection(db,"requests"), orderBy("createdAt","desc"), limit(150));
+  const snap = await getDocs(q);
+  allRequests = [];
+  snap.forEach(d => allRequests.push({ id: d.id, ...d.data() }));
+
+  renderTodayList(allRequests);
+  renderAllRequests(allRequests);
+  updateBadges();
+}
+
+function updateBadges() {
+  const open    = allRequests.filter(r => ["pending","accepted","in_progress"].includes(r.status));
+  const pending = allRequests.filter(r => r.status === "pending");
+
+  const badgeToday   = document.getElementById("badge-today");
+  const badgePending = document.getElementById("badge-pending");
+
+  badgeToday.textContent   = open.length;
+  badgeToday.style.display = open.length > 0 ? "inline" : "none";
+
+  badgePending.textContent   = pending.length;
+  badgePending.style.display = pending.length > 0 ? "inline" : "none";
+}
+
+// ══════════════════════════
+// اللوحة اليومية
+// ══════════════════════════
+window.filterToday = function(filter) {
+  todayFilter = filter;
+  document.querySelectorAll(".day-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("tab-" + filter).classList.add("active");
+  renderTodayList(allRequests);
+};
+
+function renderTodayList(list) {
+  // الطلبات النشطة فقط في اللوحة اليومية
+  let filtered = list.filter(r => ["pending","accepted","in_progress"].includes(r.status));
+
+  if (todayFilter === "pending")  filtered = filtered.filter(r => r.status === "pending");
+  if (todayFilter === "active")   filtered = filtered.filter(r => ["accepted","in_progress"].includes(r.status));
+  if (todayFilter === "urgent")   filtered = filtered.filter(r => r.priority === "urgent");
+
+  // ترتيب: عاجل أولاً، ثم حسب التاريخ
+  filtered.sort((a,b) => {
+    if (a.priority === "urgent" && b.priority !== "urgent") return -1;
+    if (b.priority === "urgent" && a.priority !== "urgent") return  1;
+    return 0;
+  });
+
+  const container = document.getElementById("today-list");
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state" style="text-align:center">
+      <div style="font-size:2rem;margin-bottom:8px">✅</div>
+      <div style="color:var(--clr-text-3)">لا توجد طلبات في هذه الفئة</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML = filtered.map(r => buildRequestCard(r, true)).join("");
+}
+
+// ══════════════════════════
+// جميع الطلبات
+// ══════════════════════════
+function renderAllRequests(list) {
+  const container = document.getElementById("all-requests-list");
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state" style="text-align:center;color:var(--clr-text-3);padding:32px">لا توجد طلبات</div>`;
+    return;
+  }
+  container.innerHTML = list.map(r => buildRequestCard(r, false)).join("");
+}
+
+window.filterAllRequests = function() {
+  const search = document.getElementById("req-search").value.toLowerCase();
+  const status = document.getElementById("req-status-filter").value;
+  const filtered = allRequests.filter(r => {
+    const matchText = !search ||
+      (r.vehiclePlate||"").toLowerCase().includes(search) ||
+      (r.ownerName||"").toLowerCase().includes(search) ||
+      (r.requestId||"").toLowerCase().includes(search) ||
+      (r.maintenanceType||"").toLowerCase().includes(search);
+    const matchStatus = !status || r.status === status;
+    return matchText && matchStatus;
+  });
+  renderAllRequests(filtered);
+};
+
+// ══════════════════════════
+// بناء بطاقة الطلب
+// ══════════════════════════
+function buildRequestCard(r, isToday) {
+  const isOpen      = ["pending","accepted","in_progress"].includes(r.status);
+  const isPending   = r.status === "pending";
+  const isAccepted  = r.status === "accepted";
+  const isProgress  = r.status === "in_progress";
+  const priorityCls = r.priority === "urgent" ? "priority-urgent" : "priority-normal";
+
+  return `
+  <div class="req-card ${isToday ? priorityCls : ''}">
+    <div class="req-card-header">
+      <div>
+        <div class="req-plate">${r.vehiclePlate || "—"}</div>
+        <div class="req-type">${r.maintenanceType || "—"}</div>
+        <div class="req-id">${r.requestId || r.id.slice(0,10)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        ${statusBadge(r.status)}
+        ${r.priority === "urgent"
+          ? `<span class="badge" style="background:#fee2e2;color:#991b1b">⚡ عاجل</span>`
+          : ""}
+        ${isOpen ? delayBadge(r.createdAt?.toDate?.() || new Date()) : ""}
+      </div>
+    </div>
+
+    <div class="req-meta">
+      <span>رئيس الهيئة: ${r.ownerName||"—"}</span>
+      <span>·</span>
+      <span>${formatDate(r.createdAt)}</span>
+    </div>
+
+    ${r.description ? `<div class="req-desc">${r.description}</div>` : ""}
+
+    <div class="req-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openRequestModal('${r.id}')">التفاصيل</button>
+      ${isPending ? `
+        <button class="btn btn-primary btn-sm" onclick="acceptRequest('${r.id}')">موافقة فورية</button>
+        <button class="btn btn-outline btn-sm" onclick="openScheduleModal('${r.id}')">تحديد موعد</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="openRejectModal('${r.id}')">رفض</button>
+      ` : ""}
+      ${isAccepted ? `
+        <button class="btn btn-outline btn-sm" onclick="startRequest('${r.id}')">بدء التنفيذ</button>
+      ` : ""}
+      ${isProgress ? `
+        <button class="btn btn-primary btn-sm" onclick="openReportModal('${r.id}')">إغلاق بتقرير</button>
+      ` : ""}
+      ${r.status === "scheduled" ? `
+        <button class="btn btn-outline btn-sm" onclick="startRequest('${r.id}')">بدء التنفيذ</button>
+      ` : ""}
+      ${isOpen || r.status === "scheduled" ? `
+        <button class="btn btn-ghost btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">💬 إفادة</button>
+      ` : ""}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════
+// مودال تفاصيل الطلب
+// ══════════════════════════
+window.openRequestModal = async function(reqId) {
+  document.getElementById("modal-request").style.display = "flex";
+  document.getElementById("modal-req-content").innerHTML =
+    `<p style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</p>`;
+
+  const snap = await getDoc(doc(db,"requests",reqId));
+  if (!snap.exists()) return;
+  const r = { id: snap.id, ...snap.data() };
+
+  document.getElementById("modal-req-title").textContent = r.requestId || reqId;
+  document.getElementById("modal-req-content").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">السيارة</div>
+           <div style="font-weight:600">${r.vehiclePlate||"—"} — ${r.vehicleMake||""} ${r.vehicleModel||""}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">رئيس الهيئة</div>
+           <div>${r.ownerName||"—"}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">نوع الصيانة</div>
+           <div>${r.maintenanceType||"—"}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">الأولوية</div>
+           <div>${r.priority === "urgent"
+             ? `<span class="badge" style="background:#fee2e2;color:#991b1b">⚡ عاجل</span>`
+             : `<span class="badge badge-active">عادية</span>`}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">الحالة</div>
+           <div>${statusBadge(r.status)}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">تاريخ الطلب</div>
+           <div>${formatDateTime(r.createdAt)}</div></div>
+    </div>
+    ${r.description ? `
+    <div style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;margin-bottom:12px">
+      <div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:4px">وصف المشكلة</div>
+      <div style="font-size:.875rem;line-height:1.6">${r.description}</div>
+    </div>` : ""}
+    ${r.notes ? `
+    <div style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;margin-bottom:12px">
+      <div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:4px">ملاحظات</div>
+      <div style="font-size:.875rem">${r.notes}</div>
+    </div>` : ""}
+    ${r.techReport ? `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-md);padding:12px">
+      <div style="font-size:.75rem;color:#166534;margin-bottom:4px">تقرير الفني</div>
+      <div style="font-size:.875rem;line-height:1.6">${r.techReport}</div>
+      ${r.cost ? `<div style="margin-top:6px;font-weight:600;color:#166534">التكلفة: ${Number(r.cost).toLocaleString("ar")} ر.س</div>` : ""}
+    </div>` : ""}
+  `;
+
+  // أزرار الإجراء
+  const footer = document.getElementById("modal-req-footer");
+  footer.innerHTML = `<button class="btn btn-ghost" onclick="closeModal('modal-request')">إغلاق</button>`;
+  if (r.status === "pending")
+    footer.innerHTML += `<button class="btn btn-primary" onclick="acceptRequest('${r.id}');closeModal('modal-request')">قبول الطلب</button>`;
+  if (r.status === "accepted")
+    footer.innerHTML += `<button class="btn btn-outline" onclick="startRequest('${r.id}');closeModal('modal-request')">بدء التنفيذ</button>`;
+  if (r.status === "in_progress")
+    footer.innerHTML += `<button class="btn btn-primary" onclick="closeModal('modal-request');openReportModal('${r.id}')">إغلاق بتقرير</button>`;
+};
+
+// ══════════════════════════
+// إجراءات الطلب
+// ══════════════════════════
+window.acceptRequest = async function(reqId) {
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      status:     "accepted",
+      techId:     techUid,
+      techName:   techData.name || "",
+      acceptedAt: serverTimestamp(),
+    });
+    showToast("تم قبول الطلب", "success");
+    await loadAllRequests();
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+window.startRequest = async function(reqId) {
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      status:      "in_progress",
+      startedAt:   serverTimestamp(),
+    });
+    showToast("بدأ التنفيذ", "success");
+    await loadAllRequests();
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+// ══════════════════════════
+// التقرير وإغلاق الطلب
+// ══════════════════════════
+window.openReportModal = function(reqId) {
+  document.getElementById("report-req-id").value = reqId;
+  document.getElementById("report-text").value   = "";
+  document.getElementById("report-parts").value  = "";
+  document.getElementById("report-cost").value   = "";
+  document.getElementById("report-condition").value = "good";
+  document.getElementById("modal-report").style.display = "flex";
+};
+
+window.submitReport = async function() {
+  const reqId     = document.getElementById("report-req-id").value;
+  const techReport= document.getElementById("report-text").value.trim();
+  const parts     = document.getElementById("report-parts").value.trim();
+  const cost      = Number(document.getElementById("report-cost").value) || 0;
+  const condition = document.getElementById("report-condition").value;
+
+  if (!techReport) { showToast("يرجى كتابة تقرير الأعمال المنجزة", "error"); return; }
+  if (!cost)       { showToast("يرجى إدخال التكلفة", "error"); return; }
+
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      status:      "done",
+      techReport,
+      parts:       parts || null,
+      cost,
+      condition,
+      techId:      techUid,
+      techName:    techData.name || "",
+      closedAt:    serverTimestamp(),
+    });
+
+    // إضافة للتقارير
+    await addDoc(collection(db,"reports"), {
+      requestId: reqId,
+      techId:    techUid,
+      techName:  techData.name || "",
+      techReport, parts: parts||null, cost, condition,
+      createdAt: serverTimestamp(),
+    });
+
+    showToast("تم إغلاق الطلب وإرسال التقرير", "success");
+    closeModal("modal-report");
+    await loadAllRequests();
+    loadMyStats();
+  } catch (e) {
+    console.error(e);
+    showToast("حدث خطأ", "error");
+  }
+};
+
+// ══════════════════════════
+// سجل السيارة
+// ══════════════════════════
+window.searchVehicleHistory = async function() {
+  const term  = document.getElementById("history-search-input").value.trim().toLowerCase();
+  const infoEl  = document.getElementById("history-vehicle-info");
+  const emptyEl = document.getElementById("history-empty");
+
+  if (!term) { showToast("أدخل رقم اللوحة أو اسم المالك", "error"); return; }
+
+  infoEl.style.display  = "none";
+  emptyEl.style.display = "none";
+
+  // البحث في السيارات — جلب الكل ثم فلترة محلياً
+  let vehicle = null;
+  try {
+    const vSnap = await getDocs(collection(db,"vehicles"));
+    vSnap.forEach(d => {
+      if (vehicle) return;
+      const v = { id: d.id, ...d.data() };
+      const plateLower = (v.plate||"").toLowerCase().replace(/\s+/g,"");
+      const ownerLower = (v.ownerName||"").toLowerCase();
+      const termClean  = term.replace(/\s+/g,"");
+      if (plateLower.includes(termClean) || ownerLower.includes(term)) {
+        vehicle = v;
+      }
+    });
+  } catch(e) {
+    console.error("خطأ في البحث:", e);
+    showToast("حدث خطأ في البحث", "error");
+    return;
+  }
+
+  if (!vehicle) { emptyEl.style.display = "block"; return; }
+
+  // معلومات السيارة
+  const oilInterval   = Number(vehicle.oilInterval||0);
+  const checkInterval = Number(vehicle.checkInterval||0);
+  const lastOil       = Number(vehicle.lastOilChangeKm||0);
+  const lastCheck     = Number(vehicle.lastCheckKm||0);
+  const currentKm     = Number(vehicle.currentKm||0);
+
+  const oilDue   = oilInterval   > 0 ? oilInterval   - (currentKm - lastOil)   : null;
+  const checkDue = checkInterval > 0 ? checkInterval - (currentKm - lastCheck) : null;
+
+  document.getElementById("history-veh-card").innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px">
+      <div><div style="font-size:.75rem;color:var(--clr-text-3)">اللوحة</div>
+           <div style="font-size:1.2rem;font-weight:700">${vehicle.plate}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3)">النوع</div>
+           <div style="font-weight:600">${vehicle.make||""} ${vehicle.model||""} ${vehicle.year?"("+vehicle.year+")":""}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3)">المالك</div>
+           <div>${vehicle.ownerName||"—"}</div></div>
+      <div><div style="font-size:.75rem;color:var(--clr-text-3)">العداد الحالي</div>
+           <div style="font-weight:600;color:var(--clr-primary)">${currentKm.toLocaleString("ar")} كم</div></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+      ${oilInterval > 0
+        ? `<span class="badge ${oilDue !== null && oilDue <= 0 ? "badge-cancelled" : oilDue !== null && oilDue <= 500 ? "badge-pending" : "badge-done"}">
+             🛢️ زيت: ${oilDue !== null ? (oilDue <= 0 ? "متأخر!" : oilDue.toLocaleString("ar")+" كم") : "—"}
+           </span>`
+        : `<span class="badge" style="background:var(--clr-bg);color:var(--clr-text-3)">🛢️ فترة الزيت غير محددة</span>`}
+      ${checkInterval > 0
+        ? `<span class="badge ${checkDue !== null && checkDue <= 0 ? "badge-cancelled" : checkDue !== null && checkDue <= 500 ? "badge-pending" : "badge-done"}">
+             🔍 فحص: ${checkDue !== null ? (checkDue <= 0 ? "متأخر!" : checkDue.toLocaleString("ar")+" كم") : "—"}
+           </span>`
+        : `<span class="badge" style="background:var(--clr-bg);color:var(--clr-text-3)">🔍 فترة الفحص غير محددة</span>`}
+      <button class="btn btn-outline btn-sm" onclick="openVehicleSettings('${vehicle.id}','${vehicle.plate}',${oilInterval},${lastOil},${checkInterval},${lastCheck})">
+        ⚙️ إعداد الصيانة
+      </button>
+    </div>`;
+
+  // سجل الطلبات
+  const rQ = query(collection(db,"requests"),
+    where("vehicleId","==",vehicle.id),
+    orderBy("createdAt","desc"));
+  const rSnap = await getDocs(rQ);
+  const reqs  = [];
+  rSnap.forEach(d => reqs.push({ id: d.id, ...d.data() }));
+
+  const histList = document.getElementById("history-requests-list");
+  if (!reqs.length) {
+    histList.innerHTML = `<div style="text-align:center;padding:24px;color:var(--clr-text-3)">لا توجد طلبات صيانة سابقة</div>`;
+  } else {
+    histList.innerHTML = reqs.map(r => `
+      <div class="vehicle-history-card">
+        <div class="history-header">
+          <div>
+            <div class="history-type">${r.maintenanceType||"—"}</div>
+            <div style="font-size:.78rem;color:var(--clr-text-3)">${r.requestId||r.id.slice(0,8)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${statusBadge(r.status)}
+            <div class="history-date">${formatDate(r.createdAt)}</div>
+          </div>
+        </div>
+        ${r.techReport
+          ? `<div class="history-report">
+               <span style="color:var(--clr-text-3);font-size:.78rem">التقرير: </span>${r.techReport}
+               ${r.cost ? `<span style="margin-right:8px;font-weight:600;color:var(--clr-done)"> — ${Number(r.cost).toLocaleString("ar")} ر.س</span>` : ""}
+             </div>`
+          : r.description
+          ? `<div class="history-report" style="color:var(--clr-text-3)">${r.description}</div>`
+          : ""}
+      </div>`).join("");
+  }
+
+  infoEl.style.display = "block";
+};
+
+// ══════════════════════════
+// الإفادة مع المدير
+// ══════════════════════════
+window.loadInquiries = async function() {
+  const q = query(collection(db,"requests"),
+    where("hasInquiry","==",true),
+    orderBy("lastInquiryAt","desc"));
+  const snap = await getDocs(q);
+  const list = document.getElementById("inquiry-list");
+
+  if (snap.empty) {
+    list.innerHTML = `<div class="empty-state" style="text-align:center;color:var(--clr-text-3)">
+      <div style="font-size:2rem;margin-bottom:8px">💬</div>
+      <div>لا توجد محادثات إفادة حتى الآن</div>
+      <div style="font-size:.85rem;margin-top:6px">ابدأ إفادة من أي طلب نشط</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = "";
+  snap.forEach(d => {
+    const r   = { id: d.id, ...d.data() };
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.marginBottom = "12px";
+    div.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:600">${r.requestId||r.id.slice(0,8)}</div>
+          <div style="font-size:.85rem;color:var(--clr-text-2)">السيارة: ${r.vehiclePlate||"—"}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${r.unreadTech ? `<span class="badge badge-active">رسالة جديدة من المدير</span>` : ""}
+          <button class="btn btn-outline btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">
+            فتح المحادثة
+          </button>
+        </div>
+      </div>`;
+    list.appendChild(div);
+  });
+};
+
+window.openInquiryModal = function(reqId, reqLabel) {
+  document.getElementById("inq-modal-title").textContent = "إفادة — " + (reqLabel || reqId);
+  currentInqId = reqId;
+  document.getElementById("modal-inquiry").style.display = "flex";
+
+  if (unsubInquiry) unsubInquiry();
+
+  const q = query(
+    collection(db,"requests",reqId,"inquiryMessages"),
+    orderBy("sentAt","asc")
+  );
+  unsubInquiry = onSnapshot(q, snap => {
+    const box = document.getElementById("inq-chat-box");
+    box.innerHTML = "";
+    if (snap.empty) {
+      box.innerHTML = `<div style="text-align:center;padding:16px;color:var(--clr-text-3);font-size:.85rem">
+        ابدأ المحادثة مع المدير</div>`;
+      return;
+    }
+    snap.forEach(d => {
+      const m   = d.data();
+      const div = document.createElement("div");
+      div.className = `chat-msg ${m.role === "tech" ? "tech" : "manager"}`;
+      div.innerHTML = `${m.text}<div class="chat-meta">${formatDateTime(m.sentAt)}</div>`;
+      box.appendChild(div);
+    });
+    box.scrollTop = box.scrollHeight;
+  });
+
+  // تعليم مقروء
+  updateDoc(doc(db,"requests",reqId), { unreadTech: false }).catch(() => {});
+};
+
+window.sendInquiryMsg = async function() {
+  if (!currentInqId) return;
+  const input = document.getElementById("inq-msg-input");
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = "";
+
+  try {
+    await addDoc(collection(db,"requests",currentInqId,"inquiryMessages"), {
+      text,
+      role:       "tech",
+      senderUid:  techUid,
+      senderName: techData.name || "الفني",
+      sentAt:     serverTimestamp(),
+    });
+    await updateDoc(doc(db,"requests",currentInqId), {
+      hasInquiry:    true,
+      lastInquiryAt: serverTimestamp(),
+      unreadManager: true,
+      unreadTech:    false,
+    });
+  } catch { showToast("فشل الإرسال", "error"); }
+};
+
+// ══════════════════════════
+// إحصاءاتي
+// ══════════════════════════
+// ══════════════════════════
+// تحديد موعد
+// ══════════════════════════
+window.openScheduleModal = function(reqId) {
+  document.getElementById("schedule-req-id").value = reqId;
+  document.getElementById("schedule-date").value   = "";
+  document.getElementById("schedule-time").value   = "";
+  document.getElementById("schedule-note").value   = "";
+  // تعيين الحد الأدنى للتاريخ = اليوم
+  document.getElementById("schedule-date").min =
+    new Date().toISOString().split("T")[0];
+  document.getElementById("modal-schedule").style.display = "flex";
+};
+
+window.confirmSchedule = async function() {
+  const reqId = document.getElementById("schedule-req-id").value;
+  const date  = document.getElementById("schedule-date").value;
+  const time  = document.getElementById("schedule-time").value;
+  const note  = document.getElementById("schedule-note").value.trim();
+
+  if (!date || !time) { showToast("يرجى تحديد التاريخ والوقت", "error"); return; }
+
+  try {
+    const scheduledAt = new Date(date + "T" + time);
+    await updateDoc(doc(db,"requests",reqId), {
+      status:      "scheduled",
+      techId:      techUid,
+      techName:    techData.name || "",
+      scheduledAt: Timestamp.fromDate(scheduledAt),
+      scheduleNote: note || null,
+      acceptedAt:  serverTimestamp(),
+    });
+    showToast("تم تحديد الموعد وإبلاغ المالك", "success");
+    closeModal("modal-schedule");
+    await loadAllRequests();
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+// ══════════════════════════
+// رفض الطلب
+// ══════════════════════════
+window.openRejectModal = function(reqId) {
+  document.getElementById("reject-req-id").value = reqId;
+  document.getElementById("reject-reason").value = "";
+  document.getElementById("modal-reject").style.display = "flex";
+};
+
+window.confirmReject = async function() {
+  const reqId  = document.getElementById("reject-req-id").value;
+  const reason = document.getElementById("reject-reason").value.trim();
+  if (!reason) { showToast("يرجى ذكر سبب الرفض", "error"); return; }
+
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      status:       "cancelled",
+      rejectedBy:   techUid,
+      rejectedByName: techData.name || "",
+      rejectReason: reason,
+      cancelledAt:  serverTimestamp(),
+    });
+    showToast("تم رفض الطلب", "info");
+    closeModal("modal-reject");
+    await loadAllRequests();
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+// ══════════════════════════
+// إعدادات صيانة السيارة
+// ══════════════════════════
+window.openVehicleSettings = function(vId, plate, oilInt, lastOil, checkInt, lastCheck) {
+  document.getElementById("vs-vehicle-id").value       = vId;
+  document.getElementById("vs-vehicle-info").textContent = "السيارة: " + plate;
+  document.getElementById("vs-oil-interval").value     = oilInt   || "0";
+  document.getElementById("vs-last-oil").value         = lastOil  || "";
+  document.getElementById("vs-check-interval").value   = checkInt || "0";
+  document.getElementById("vs-last-check").value       = lastCheck || "";
+  document.getElementById("modal-vehicle-settings").style.display = "flex";
+};
+
+window.saveVehicleSettings = async function() {
+  const vId        = document.getElementById("vs-vehicle-id").value;
+  const oilInt     = Number(document.getElementById("vs-oil-interval").value)  || 0;
+  const lastOil    = Number(document.getElementById("vs-last-oil").value)      || 0;
+  const checkInt   = Number(document.getElementById("vs-check-interval").value)|| 0;
+  const lastCheck  = Number(document.getElementById("vs-last-check").value)    || 0;
+
+  try {
+    await updateDoc(doc(db,"vehicles",vId), {
+      oilInterval:      oilInt,
+      lastOilChangeKm:  lastOil,
+      checkInterval:    checkInt,
+      lastCheckKm:      lastCheck,
+      maintenanceSettingsUpdatedBy:   techUid,
+      maintenanceSettingsUpdatedAt:   serverTimestamp(),
+    });
+    showToast("تم حفظ إعدادات الصيانة", "success");
+    closeModal("modal-vehicle-settings");
+    // إعادة تحميل سجل السيارة
+    window.searchVehicleHistory();
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+window.loadMyStats = async function() {
+  const period = document.getElementById("stats-period")?.value || "month";
+  const now    = new Date();
+  let startDate;
+  if (period === "month")        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if (period === "quarter") startDate = new Date(now.getFullYear(), now.getMonth()-2, 1);
+  else                           startDate = new Date(2020, 0, 1);
+
+  try {
+    // جلب جميع طلبات الفني بدون compound query لتجنب مشكلة الـ index
+    const allMyQ = query(collection(db,"requests"), where("techId","==",techUid), orderBy("createdAt","desc"), limit(200));
+    const allMySnap = await getDocs(allMyQ);
+    const allMy = [];
+    allMySnap.forEach(d => allMy.push({ id:d.id, ...d.data() }));
+
+    // فلترة محلياً
+    const doneList = allMy.filter(r => {
+      if (r.status !== "done") return false;
+      if (!r.closedAt) return true;
+      const closed = r.closedAt.toDate?.() || new Date(r.closedAt);
+      return closed >= startDate;
+    });
+
+    const activeList = allMy.filter(r => ["accepted","in_progress","scheduled"].includes(r.status));
+
+    const totalCost = doneList.reduce((s,r) => s + (Number(r.cost)||0), 0);
+    const ratings   = doneList.filter(r => r.ownerRating).map(r => r.ownerRating);
+    const avgRating = ratings.length
+      ? (ratings.reduce((s,v) => s+v, 0) / ratings.length).toFixed(1) : "—";
+
+    document.getElementById("my-done").textContent   = doneList.length;
+    document.getElementById("my-active").textContent = activeList.length;
+    document.getElementById("my-cost").textContent   = totalCost.toLocaleString("ar");
+    document.getElementById("my-rating").textContent = avgRating !== "—" ? avgRating + " ⭐" : "—";
+
+    const tbody = document.getElementById("my-done-body");
+    if (!doneList.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--clr-text-3)">لا توجد بيانات في هذه الفترة</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = doneList.slice(0,20).map(r => `
+      <tr>
+        <td style="font-size:.78rem;color:var(--clr-text-3)">${r.requestId||r.id.slice(0,8)}</td>
+        <td>${r.vehiclePlate||"—"}</td>
+        <td>${r.maintenanceType||"—"}</td>
+        <td>${r.cost ? Number(r.cost).toLocaleString("ar")+" ر.س" : "—"}</td>
+        <td>${r.ownerRating ? "⭐".repeat(r.ownerRating) : "—"}</td>
+        <td>${formatDate(r.closedAt)}</td>
+      </tr>`).join("");
+  } catch(e) {
+    console.error("خطأ في الإحصاءات:", e);
+    showToast("حدث خطأ في تحميل الإحصاءات", "error");
+  }
+};
+
+</script>
+</body>
+</html>
