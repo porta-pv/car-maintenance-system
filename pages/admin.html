@@ -237,6 +237,7 @@
       </button>
       <button class="nav-item" id="nav-inquiry" onclick="showSection('inquiry')">
         <span class="nav-icon">💬</span> طلبات الإفادة
+        <span id="badge-inquiry" style="margin-right:auto;background:#fee2e2;color:#991b1b;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">!</span>
       </button>
     </div>
     <div class="nav-section">
@@ -663,6 +664,7 @@ let unsubInquiry = null;
       new Date().toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
     await Promise.all([loadOverview(), loadVehicles(), loadRequests(), loadTransfers(), loadAlerts()]);
     loadReports();
+    watchManagerInquiryBadge();
   } catch (e) {
     console.error(e);
   }
@@ -988,6 +990,25 @@ window.rejectTransfer = async function(vId) {
 // ═══════════════════════════════
 // طلبات الإفادة
 // ═══════════════════════════════
+// ══════════════════════════
+// مراقبة شارة الإفادة (فوري)
+// ══════════════════════════
+function watchManagerInquiryBadge() {
+  const q = query(
+    collection(db,"requests"),
+    where("unreadManager","==",true)
+  );
+  onSnapshot(q, snap => {
+    const badge = document.getElementById("badge-inquiry");
+    if (snap.size > 0) {
+      badge.textContent = snap.size;
+      badge.style.display = "inline";
+    } else {
+      badge.style.display = "none";
+    }
+  });
+}
+
 async function loadInquiries() {
   const list = document.getElementById("inquiry-list");
   list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--clr-text-3)">جارٍ التحميل…</div>`;
