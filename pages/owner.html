@@ -428,6 +428,14 @@
               <option value="urgent">عاجلة</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">حالة السيارة عند الطلب</label>
+            <select class="form-select" id="nr-condition">
+              <option value="working">تعمل</option>
+              <option value="needs_service">تعمل وتحتاج صيانة عاجلة</option>
+              <option value="stopped">متوقفة تحتاج صيانة</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-group">
@@ -485,6 +493,15 @@
     <div class="form-group">
       <label class="form-label">قراءة العداد الحالية (كم) <span style="color:#ef4444">*</span></label>
       <input class="form-input" type="number" id="av-km" placeholder="مثال: 75000" min="0" inputmode="numeric"/>
+    </div>
+
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">حالة السيارة</label>
+      <select class="form-select" id="av-condition">
+        <option value="working">تعمل</option>
+        <option value="needs_service">تعمل وتحتاج صيانة عاجلة</option>
+        <option value="stopped">متوقفة تحتاج صيانة</option>
+      </select>
     </div>
 
     <div class="form-group" style="margin-bottom:0">
@@ -637,6 +654,13 @@ function renderVehiclesGrid() {
         <span class="km-value">${Number(v.currentKm||0).toLocaleString("ar")}</span>
         <span class="km-label">كم</span>
       </div>
+      <div style="margin-top:8px">
+        ${v.condition === "needs_service"
+          ? `<span style="background:#fef3c7;color:#92400e;border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:500">⚠️ تحتاج صيانة عاجلة</span>`
+          : v.condition === "stopped"
+          ? `<span style="background:#fee2e2;color:#991b1b;border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:500">🔴 متوقفة تحتاج صيانة</span>`
+          : `<span style="background:#d1fae5;color:#065f46;border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:500">✅ تعمل</span>`}
+      </div>
       <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="goToNewRequest('${v.id}')">طلب صيانة</button>
         <button class="btn btn-outline btn-sm" onclick="goToKm('${v.id}')">تسجيل عداد</button>
@@ -750,11 +774,13 @@ window.saveNewVehicle = async function() {
   if (km < 0) { showToast("قراءة العداد غير صحيحة", "error"); return; }
 
   try {
+    const condition = document.getElementById("av-condition").value;
     await addDoc(collection(db,"vehicles"), {
       plate, make, model, year: year||"", color,
       currentKm:         km,
       lastOilChangeKm:   0,
       lastCheckKm:       0,
+      condition:         condition,
       ownerId:           ownerUid,
       ownerName:         ownerData.name || "",
       status:            "active",
@@ -1083,6 +1109,7 @@ window.submitRequest = async function() {
   if (!vehicle) { showToast("السيارة غير موجودة", "error"); return; }
 
   try {
+    const vehicleCondition = document.getElementById("nr-condition").value;
     await addDoc(collection(db,"requests"), {
       requestId:       generateRequestId(),
       vehicleId:       vId,
@@ -1095,11 +1122,14 @@ window.submitRequest = async function() {
       description:     desc,
       priority:        prio,
       notes:           note || null,
+      vehicleCondition: vehicleCondition,
       status:          "pending",
       ownerConfirmed:  false,
       hasInquiry:      false,
       createdAt:       serverTimestamp(),
     });
+    // تحديث حالة السيارة
+    await updateDoc(doc(db,"vehicles",vId), { condition: vehicleCondition });
     showToast("تم إرسال طلب الصيانة بنجاح", "success");
     // إعادة ضبط النموذج
     ["nr-vehicle","nr-type","nr-priority"].forEach(id =>
@@ -1193,16 +1223,19 @@ window.approveScheduleChange = async function(reqId) {
 };
 
 window.rejectScheduleChange = async function(reqId) {
+  const reason = prompt("اذكر سبب رفض الموعد المقترح (سيُبلَّغ الفني):");
+  if (reason === null) return; // ضغط إلغاء
   try {
     await updateDoc(doc(db,"requests",reqId), {
       scheduleChangeAwaitingApproval: false,
       scheduleChangeApproved:         false,
       scheduleChangeRejectedAt:       serverTimestamp(),
+      scheduleChangeRejectReason:     reason || "لم يُذكر سبب",
       newScheduledAt:                 null,
       newScheduleNote:                null,
       techScheduleChangeResult:       "rejected",
     });
-    showToast("تم رفض تغيير الموعد — سيُبلَّغ الفني", "info");
+    showToast("تم رفض تغيير الموعد — سيُبلَّغ الفني بالسبب", "info");
   } catch { showToast("حدث خطأ", "error"); }
 };
 

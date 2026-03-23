@@ -836,6 +836,11 @@ function buildRequestCard(r, isToday) {
       <span>رئيس الهيئة: ${r.ownerName||"—"}</span>
       <span>·</span>
       <span>${formatDate(r.createdAt)}</span>
+      ${r.vehicleCondition === "needs_service"
+        ? `<span>·</span><span style="color:#92400e;font-weight:600">⚠️ تحتاج صيانة عاجلة</span>`
+        : r.vehicleCondition === "stopped"
+        ? `<span>·</span><span style="color:#991b1b;font-weight:600">🔴 متوقفة</span>`
+        : ""}
     </div>
 
     ${r.description ? `<div class="req-desc">${r.description}</div>` : ""}
@@ -851,7 +856,7 @@ function buildRequestCard(r, isToday) {
       let extra = "";
       if (awaitingApproval) extra = `<div style="margin-top:6px;font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد الجديد</div>`;
       else if (changeResult==="approved") extra = `<div style="margin-top:6px;font-size:.82rem;color:#065f46;background:#d1fae5;border-radius:4px;padding:4px 8px">✅ وافق رئيس الهيئة على الموعد الجديد</div>`;
-      else if (changeResult==="rejected") extra = `<div style="margin-top:6px;font-size:.82rem;color:#991b1b;background:#fee2e2;border-radius:4px;padding:4px 8px">❌ رفض رئيس الهيئة تغيير الموعد</div>`;
+      else if (changeResult==="rejected") extra = `<div style="margin-top:6px;font-size:.82rem;color:#991b1b;background:#fee2e2;border-radius:4px;padding:4px 8px">❌ رفض رئيس الهيئة تغيير الموعد${r.scheduleChangeRejectReason ? ` — السبب: ${r.scheduleChangeRejectReason}` : ""}</div>`;
       return `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#1e40af;margin-bottom:10px">
         📅 <strong>${dateStr} الساعة ${timeStr}${diffStr}</strong>
         ${r.scheduleNote ? `<div style="margin-top:4px;font-size:.82rem;color:#1e3a8a">${r.scheduleNote}</div>` : ""}

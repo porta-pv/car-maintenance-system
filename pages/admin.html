@@ -855,12 +855,19 @@ function renderRequests(list) {
       <td style="font-size:.8rem;color:var(--clr-text-3)">${r.requestId || r.id.slice(0,8)}</td>
       <td>${r.vehiclePlate || "—"}</td>
       <td class="col-owner">${r.ownerName || "—"}</td>
-      <td>${r.maintenanceType || "—"}</td>
+      <td>
+        ${r.maintenanceType || "—"}
+        ${r.vehicleCondition === "needs_service"
+          ? `<br/><span style="font-size:.75rem;color:#92400e">⚠️ عاجلة</span>`
+          : r.vehicleCondition === "stopped"
+          ? `<br/><span style="font-size:.75rem;color:#991b1b">🔴 متوقفة</span>`
+          : ""}
+      </td>
       <td>${statusBadge(r.status)}</td>
       <td>${r.status === "scheduled" && r.scheduledAt
             ? `<span class="badge badge-scheduled">📅 ${adminFormatDate(r.scheduledAt)}<br/><span style="font-size:.72rem">${adminDaysUntil(r.scheduledAt)}</span></span>
                ${r.scheduleChangeAwaitingApproval ? `<br/><span class="badge badge-pending" style="font-size:.72rem;margin-top:3px">⏳ تغيير موعد بانتظار موافقة المالك</span>` : ""}
-               ${r.techScheduleChangeResult==="rejected" ? `<br/><span class="badge badge-cancelled" style="font-size:.72rem;margin-top:3px">❌ المالك رفض تغيير الموعد</span>` : ""}`
+               ${r.techScheduleChangeResult==="rejected" ? `<br/><span class="badge badge-cancelled" style="font-size:.72rem;margin-top:3px">❌ المالك رفض التغيير${r.scheduleChangeRejectReason ? `: ${r.scheduleChangeRejectReason}` : ""}</span>` : ""}`
             : r.status !== "done" && r.status !== "cancelled"
             ? delayBadge(r.createdAt?.toDate?.() || new Date()) : "—"}</td>
       <td>
