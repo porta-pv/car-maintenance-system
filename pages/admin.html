@@ -419,13 +419,12 @@
                 <th class="col-owner">رئيس الهيئة</th>
                 <th>نوع الصيانة</th>
                 <th class="col-status">الحالة</th>
-                <th>التسليم</th>
                 <th>التأخير</th>
                 <th>تفاصيل</th>
               </tr>
             </thead>
             <tbody id="requests-body">
-              <tr class="loading-row"><td colspan="8">جارٍ التحميل…</td></tr>
+              <tr class="loading-row"><td colspan="7">جارٍ التحميل…</td></tr>
             </tbody>
           </table>
         </div>
@@ -842,14 +841,12 @@ function renderOverviewRequests(rows) {
       <td style="font-size:.8rem;color:var(--clr-text-3)">${r.requestId || r.id.slice(0,8)}</td>
       <td>${r.vehiclePlate || "—"}</td>
       <td>${r.ownerName || "—"}</td>
-      <td>${statusBadge(r.status)}</td>
-      <td>${r.handoverAt
-            ? `<div style="font-size:.78rem">
-                <div style="color:#065f46;font-weight:600">✓ مسلَّمة</div>
-                <div style="color:var(--clr-text-3)">${r.handoverDriver||""}</div>
-                <div style="color:var(--clr-text-3)">${formatDate(r.handoverAt)}</div>
-               </div>`
-            : `<span style="color:var(--clr-text-3);font-size:.78rem">—</span>`}</td>
+      <td>
+        ${statusBadge(r.status)}
+        ${r.handoverAt
+          ? `<br/><span class="badge badge-done" style="margin-top:4px;font-size:.72rem">✓ مسلَّمة</span>`
+          : ""}
+      </td>
       <td>${r.status === "scheduled" && r.scheduledAt
           ? `<span class="badge badge-scheduled" style="font-size:.72rem">📅 ${adminFormatDate(r.scheduledAt)}</span>`
           : r.status !== "done" && r.status !== "cancelled"
@@ -988,14 +985,12 @@ function renderRequests(list) {
           ? `<br/><span style="font-size:.75rem;color:#991b1b">🔴 متوقفة</span>`
           : ""}
       </td>
-      <td>${statusBadge(r.status)}</td>
-      <td>${r.handoverAt
-            ? `<div style="font-size:.78rem">
-                <div style="color:#065f46;font-weight:600">✓ مسلَّمة</div>
-                <div style="color:var(--clr-text-3)">${r.handoverDriver||""}</div>
-                <div style="color:var(--clr-text-3)">${formatDate(r.handoverAt)}</div>
-               </div>`
-            : `<span style="color:var(--clr-text-3);font-size:.78rem">—</span>`}</td>
+      <td>
+        ${statusBadge(r.status)}
+        ${r.handoverAt
+          ? `<br/><span class="badge badge-done" style="margin-top:4px;font-size:.72rem">✓ مسلَّمة</span>`
+          : ""}
+      </td>
       <td>${r.status === "scheduled" && r.scheduledAt
             ? `<span class="badge badge-scheduled">📅 ${adminFormatDate(r.scheduledAt)}<br/><span style="font-size:.72rem">${adminDaysUntil(r.scheduledAt)}</span></span>
                ${r.scheduleChangeAwaitingApproval ? `<br/><span class="badge badge-pending" style="font-size:.72rem;margin-top:3px">⏳ تغيير موعد بانتظار موافقة رئيس الهيئة</span>` : ""}
@@ -1040,32 +1035,78 @@ window.openRequestModal = async function(reqId) {
   const r = { id: snap.id, ...snap.data() };
   document.getElementById("modal-req-title").textContent = r.requestId || reqId;
 
-  document.getElementById("modal-req-body").innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:3px">السيارة</div>
-           <div style="font-weight:600">${r.vehiclePlate || "—"}</div></div>
-      <div><div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:3px">رئيس الهيئة</div>
-           <div>${r.ownerName || "—"}</div></div>
-      <div><div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:3px">نوع الصيانة</div>
-           <div>${r.maintenanceType || "—"}</div></div>
-      <div><div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:3px">الحالة</div>
-           <div>${statusBadge(r.status)}</div></div>
-      <div><div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:3px">تاريخ الطلب</div>
-           <div>${formatDateTime(r.createdAt)}</div></div>
-      <div><div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:3px">تاريخ الإغلاق</div>
-           <div>${formatDate(r.closedAt) || "—"}</div></div>
-    </div>
-    ${r.notes ? `<div style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;font-size:.875rem;color:var(--clr-text-2);margin-bottom:12px">
-      <div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:4px">ملاحظات رئيس الهيئة</div>
-      ${r.notes}</div>` : ""}
-    ${r.techReport ? `<div style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;font-size:.875rem;color:var(--clr-text-2);margin-bottom:12px">
-      <div style="font-size:.78rem;color:var(--clr-text-3);margin-bottom:4px">تقرير الفني</div>
-      ${r.techReport}
-      ${r.cost ? `<div style="margin-top:6px;font-weight:600;color:var(--clr-text-1)">التكلفة: ${Number(r.cost).toLocaleString("ar")} ر.س</div>` : ""}
-    </div>` : ""}
-    ${r.ownerRating ? `<div style="font-size:.85rem;color:var(--clr-text-2)">تقييم رئيس الهيئة: ${"⭐".repeat(r.ownerRating)} (${r.ownerRating}/5)</div>` : ""}
-    ${r.ownerComment ? `<div style="font-size:.85rem;color:var(--clr-text-2);margin-top:4px">"${r.ownerComment}"</div>` : ""}
-  `;
+  // ── قسم معلومات الطلب ──
+  const infoGrid = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:.72rem;font-weight:500;color:var(--clr-text-3);margin-bottom:8px;letter-spacing:.04em">معلومات الطلب</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">السيارة</div>
+             <div style="font-weight:600">${r.vehiclePlate||"—"} — ${r.vehicleMake||""} ${r.vehicleModel||""}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">رئيس الهيئة</div>
+             <div>${r.ownerName||"—"}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">نوع الصيانة</div>
+             <div>${r.maintenanceType||"—"}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">حالة السيارة</div>
+             <div>${r.vehicleCondition==="needs_service" ? "⚠️ تحتاج صيانة عاجلة"
+               : r.vehicleCondition==="stopped" ? "🔴 متوقفة"
+               : "✅ تعمل"}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">الحالة</div>
+             <div>${statusBadge(r.status)}${r.handoverAt ? `<span class="badge badge-done" style="margin-right:4px">✓ مسلَّمة</span>` : ""}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">الفني</div>
+             <div>${r.techName||"—"}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">تاريخ الطلب</div>
+             <div style="font-size:.82rem">${formatDateTime(r.createdAt)}</div></div>
+        <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">تاريخ الإغلاق</div>
+             <div style="font-size:.82rem">${formatDate(r.closedAt)||"—"}</div></div>
+      </div>
+    </div>`;
+
+  // ── قسم بيانات التسليم ──
+  const handoverSection = r.handoverAt ? `
+    <div style="height:0.5px;background:var(--clr-border);margin:12px 0"></div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:.72rem;font-weight:500;color:var(--clr-text-3);margin-bottom:8px;letter-spacing:.04em">بيانات تسليم السيارة</div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-md);padding:12px 14px">
+        <div style="font-size:.8rem;font-weight:600;color:#166534;margin-bottom:8px">✓ تم التسليم للفني</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">السائق</div>
+               <div style="font-size:.875rem;color:#166534;font-weight:500">${r.handoverDriver||"—"}</div></div>
+          <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">العداد عند التسليم</div>
+               <div style="font-size:.875rem;color:#166534;font-weight:500">${r.handoverKm ? Number(r.handoverKm).toLocaleString("ar")+" كم" : "—"}</div></div>
+          <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">وقت التسليم</div>
+               <div style="font-size:.82rem;color:#166534">${formatDateTime(r.handoverAt)}</div></div>
+          <div><div style="font-size:.75rem;color:var(--clr-text-3);margin-bottom:2px">سلّمه</div>
+               <div style="font-size:.875rem;color:#166534">${r.handoverBy||"—"}</div></div>
+        </div>
+      </div>
+    </div>` : "";
+
+  // ── وصف المشكلة ──
+  const descSection = r.description || r.notes ? `
+    <div style="height:0.5px;background:var(--clr-border);margin:12px 0"></div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:.72rem;font-weight:500;color:var(--clr-text-3);margin-bottom:8px;letter-spacing:.04em">وصف المشكلة</div>
+      <div style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;font-size:.875rem;color:var(--clr-text-2);line-height:1.6">
+        ${r.description||r.notes||""}
+      </div>
+    </div>` : "";
+
+  // ── تقرير الفني ──
+  const reportSection = r.techReport ? `
+    <div style="height:0.5px;background:var(--clr-border);margin:12px 0"></div>
+    <div>
+      <div style="font-size:.72rem;font-weight:500;color:var(--clr-text-3);margin-bottom:8px;letter-spacing:.04em">تقرير الفني</div>
+      <div style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;font-size:.875rem;color:var(--clr-text-2);line-height:1.6">
+        ${r.techReport}
+        ${r.parts ? `<div style="margin-top:6px;color:var(--clr-text-3);font-size:.82rem">قطع الغيار: ${r.parts}</div>` : ""}
+        ${r.cost !== undefined && r.cost !== null ? `<div style="margin-top:6px;font-weight:600;color:var(--clr-text-1)">التكلفة: ${Number(r.cost).toLocaleString("ar")} ر.س</div>` : ""}
+      </div>
+      ${r.ownerRating ? `<div style="margin-top:8px;font-size:.85rem;color:var(--clr-text-2)">تقييم رئيس الهيئة: ${"⭐".repeat(r.ownerRating)} (${r.ownerRating}/5)
+        ${r.ownerComment ? `<br/><span style="font-style:italic">"${r.ownerComment}"</span>` : ""}</div>` : ""}
+    </div>` : "";
+
+  document.getElementById("modal-req-body").innerHTML =
+    infoGrid + handoverSection + descSection + reportSection;
 };
 
 // ═══════════════════════════════
