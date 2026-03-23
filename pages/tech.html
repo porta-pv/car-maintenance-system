@@ -1003,11 +1003,12 @@ window.submitReport = async function() {
   const reqId     = document.getElementById("report-req-id").value;
   const techReport= document.getElementById("report-text").value.trim();
   const parts     = document.getElementById("report-parts").value.trim();
-  const cost      = Number(document.getElementById("report-cost").value) || 0;
+  const costRaw   = document.getElementById("report-cost").value;
+  const cost      = costRaw === "" ? null : Number(costRaw);
   const condition = document.getElementById("report-condition").value;
 
   if (!techReport) { showToast("يرجى كتابة تقرير الأعمال المنجزة", "error"); return; }
-  if (!cost)       { showToast("يرجى إدخال التكلفة", "error"); return; }
+  if (cost === null) { showToast("يرجى إدخال التكلفة (يمكن كتابة 0 إذا كانت مجانية)", "error"); return; }
 
   try {
     await updateDoc(doc(db,"requests",reqId), {

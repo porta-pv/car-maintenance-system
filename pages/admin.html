@@ -261,26 +261,30 @@
         <span id="overview-date" style="font-size:.85rem;color:var(--clr-text-3)"></span>
       </div>
 
-      <div class="stats-grid" id="stats-grid">
+      <div class="stats-grid" id="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
         <div class="stat-card accent-blue">
           <div class="stat-label">إجمالي السيارات</div>
           <div class="stat-value" id="stat-vehicles">—</div>
           <div class="stat-sub">مسجّلة في النظام</div>
         </div>
-        <div class="stat-card accent-amber">
-          <div class="stat-label">طلبات مفتوحة</div>
-          <div class="stat-value" id="stat-open">—</div>
-          <div class="stat-sub">بانتظار القبول أو قيد التنفيذ</div>
-        </div>
         <div class="stat-card accent-green">
-          <div class="stat-label">طلبات منجزة</div>
-          <div class="stat-value" id="stat-done">—</div>
-          <div class="stat-sub">هذا الشهر</div>
+          <div class="stat-label">سيارات تعمل</div>
+          <div class="stat-value" id="stat-working">—</div>
+          <div class="stat-sub">حالة طبيعية</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">تحتاج صيانة عاجلة</div>
+          <div class="stat-value" id="stat-needs-service">—</div>
+          <div class="stat-sub">⚠️ تعمل لكن عاجلة</div>
         </div>
         <div class="stat-card accent-red">
-          <div class="stat-label">تجاوزت 14 يوم</div>
-          <div class="stat-value" id="stat-overdue">—</div>
-          <div class="stat-sub">طلبات متأخرة جداً</div>
+          <div class="stat-label">متوقفة تحتاج صيانة</div>
+          <div class="stat-value" id="stat-stopped">—</div>
+          <div class="stat-sub">🔴 خارج الخدمة</div>
+        </div>
+        <!-- رسم بياني دائري -->
+        <div class="stat-card" style="grid-column:span 1;min-height:160px;display:flex;align-items:center;justify-content:center;padding:12px">
+          <canvas id="vehicle-condition-chart" width="140" height="140"></canvas>
         </div>
       </div>
 
@@ -314,6 +318,28 @@
     <div class="section" id="section-vehicles">
       <div class="section-header">
         <h2 class="section-title">السيارات</h2>
+      </div>
+
+      <!-- إحصاءات الطلبات -->
+      <div class="stats-grid" style="margin-bottom:20px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <div class="stat-card accent-amber">
+          <div class="stat-label">طلبات مفتوحة</div>
+          <div class="stat-value" id="stat-open">—</div>
+          <div class="stat-sub">بانتظار القبول أو قيد التنفيذ</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">طلبات منجزة</div>
+          <div class="stat-value" id="stat-done">—</div>
+          <div class="stat-sub">هذا الشهر</div>
+        </div>
+        <div class="stat-card accent-red">
+          <div class="stat-label">تجاوزت 14 يوم</div>
+          <div class="stat-value" id="stat-overdue">—</div>
+          <div class="stat-sub">طلبات متأخرة جداً</div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-bottom:14px">
         <div class="filters">
           <input class="search-input" type="search" id="veh-search" placeholder="بحث بلوحة أو نوع…" oninput="filterVehicles()"/>
           <select class="filter-select" id="veh-filter-status" onchange="filterVehicles()">
@@ -636,6 +662,7 @@
 <!-- ══════════════════════════════════════════
      JavaScript
 ════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
 import { auth, db }          from "../js/firebase.js";
 import { requireRole }       from "../js/router.js";
@@ -696,6 +723,41 @@ window.closeModalOutside = (e, id) => { if (e.target.id === id) closeModal(id); 
 // ═══════════════════════════════
 // النظرة العامة
 // ═══════════════════════════════
+// رسم بياني دائري لحالات السيارات
+let vehicleChartInstance = null;
+function drawVehicleChart(working, service, stopped) {
+  const canvas = document.getElementById("vehicle-condition-chart");
+  if (!canvas) return;
+  const total = working + service + stopped;
+  if (!total) return;
+  const ctx = canvas.getContext("2d");
+  if (vehicleChartInstance) vehicleChartInstance.destroy();
+  vehicleChartInstance = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["تعمل", "تحتاج صيانة عاجلة", "متوقفة"],
+      datasets: [{
+        data: [working, service, stopped],
+        backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
+        borderWidth: 2,
+        borderColor: "transparent",
+      }]
+    },
+    options: {
+      responsive: false,
+      cutout: "60%",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed/total*100)}%)`
+          }
+        }
+      }
+    }
+  });
+}
+
 async function loadOverview() {
   try {
     const now        = new Date();
@@ -722,10 +784,23 @@ async function loadOverview() {
       return created && created < limit14;
     }).length;
 
-    document.getElementById("stat-vehicles").textContent = vehSnap.size;
-    document.getElementById("stat-open").textContent     = openReqs.length;
-    document.getElementById("stat-done").textContent     = doneMonth.length;
-    document.getElementById("stat-overdue").textContent  = overdue;
+    // إحصاءات السيارات حسب الحالة
+    const vehs = [];
+    vehSnap.forEach(d => vehs.push(d.data()));
+    const vWorking  = vehs.filter(v => !v.condition || v.condition === "working").length;
+    const vService  = vehs.filter(v => v.condition === "needs_service").length;
+    const vStopped  = vehs.filter(v => v.condition === "stopped").length;
+
+    document.getElementById("stat-vehicles").textContent     = vehSnap.size;
+    document.getElementById("stat-working").textContent      = vWorking;
+    document.getElementById("stat-needs-service").textContent= vService;
+    document.getElementById("stat-stopped").textContent      = vStopped;
+    document.getElementById("stat-open").textContent         = openReqs.length;
+    document.getElementById("stat-done").textContent         = doneMonth.length;
+    document.getElementById("stat-overdue").textContent      = overdue;
+
+    // رسم الـ Pie Chart
+    drawVehicleChart(vWorking, vService, vStopped);
 
     // آخر 10 طلبات
     renderOverviewRequests(allReqs.slice(0, 10));
@@ -890,7 +965,7 @@ function renderRequests(list) {
       <td>${r.status === "scheduled" && r.scheduledAt
             ? `<span class="badge badge-scheduled">📅 ${adminFormatDate(r.scheduledAt)}<br/><span style="font-size:.72rem">${adminDaysUntil(r.scheduledAt)}</span></span>
                ${r.scheduleChangeAwaitingApproval ? `<br/><span class="badge badge-pending" style="font-size:.72rem;margin-top:3px">⏳ تغيير موعد بانتظار موافقة رئيس الهيئة</span>` : ""}
-               ${r.techScheduleChangeResult==="rejected" ? `<br/><span class="badge badge-cancelled" style="font-size:.72rem;margin-top:3px">❌ المالك رفض التغيير${r.scheduleChangeRejectReason ? `: ${r.scheduleChangeRejectReason}` : ""}</span>` : ""}`
+               ${r.techScheduleChangeResult==="rejected" ? `<br/><span class="badge badge-cancelled" style="font-size:.72rem;margin-top:3px">❌ رئيس الهيئة رفض التغيير${r.scheduleChangeRejectReason ? `: ${r.scheduleChangeRejectReason}` : ""}</span>` : ""}`
             : r.status !== "done" && r.status !== "cancelled"
             ? delayBadge(r.createdAt?.toDate?.() || new Date()) : "—"}</td>
       <td>
