@@ -691,7 +691,7 @@ import { showToast, statusBadge, delayBadge, formatDate, formatDateTime, logout 
                              from "../js/utils.js";
 import {
   collection, query, where, orderBy, limit,
-  getDocs, getDoc, doc, updateDoc, addDoc,
+  getDocs, getDoc, getDocFromServer, doc, updateDoc, addDoc,
   onSnapshot, serverTimestamp, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -1027,7 +1027,7 @@ window.openRequestModal = async function(reqId) {
   document.getElementById("modal-req-body").innerHTML =
     `<p style="color:var(--clr-text-3);text-align:center;padding:20px">جارٍ التحميل…</p>`;
 
-  const snap = await getDoc(doc(db,"requests",reqId));
+  const snap = await getDocFromServer(doc(db,"requests",reqId));
   if (!snap.exists()) {
     document.getElementById("modal-req-body").innerHTML = `<p>لم يُعثر على الطلب</p>`;
     return;
