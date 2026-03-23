@@ -819,12 +819,29 @@ window.viewVehicleDetails = function(id) {
 // ═══════════════════════════════
 // طلبات الصيانة
 // ═══════════════════════════════
+let unsubAdminRequests = null;
+
 async function loadRequests() {
-  const q    = query(collection(db,"requests"), orderBy("createdAt","desc"), limit(100));
-  const snap = await getDocs(q);
-  allRequests = [];
-  snap.forEach(d => allRequests.push({ id: d.id, ...d.data() }));
-  renderRequests(allRequests);
+  if (unsubAdminRequests) unsubAdminRequests();
+  const q = query(collection(db,"requests"), orderBy("createdAt","desc"), limit(100));
+  unsubAdminRequests = onSnapshot(q, snap => {
+    allRequests = [];
+    snap.forEach(d => allRequests.push({ id:d.id, ...d.data() }));
+    renderRequests(allRequests);
+    // تحديث الإحصاءات العلوية أيضاً
+    const open = allRequests.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
+    document.getElementById("stat-open").textContent = open.length;
+    updatePendingBadge(open.length);
+    const limit14 = new Date(Date.now() - 14*24*60*60*1000);
+    const overdue = open.filter(r => { const c = r.createdAt?.toDate?.(); return c && c < limit14; }).length;
+    document.getElementById("stat-overdue").textContent = overdue;
+    // تحديث آخر الطلبات في النظرة العامة
+    if (document.getElementById("section-overview")?.classList.contains("active")) {
+      renderOverviewRequests(allRequests.slice(0,10));
+    }
+  }, err => {
+    console.error("خطأ في مراقبة الطلبات:", err);
+  });
 }
 
 function renderRequests(list) {
