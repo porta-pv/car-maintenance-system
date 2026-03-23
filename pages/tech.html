@@ -679,15 +679,30 @@ window.unsubInquiry = null;
 // ══════════════════════════
 // تحميل الطلبات
 // ══════════════════════════
-async function loadAllRequests() {
-  const q    = query(collection(db,"requests"), orderBy("createdAt","desc"), limit(150));
-  const snap = await getDocs(q);
-  allRequests = [];
-  snap.forEach(d => allRequests.push({ id: d.id, ...d.data() }));
+let unsubRequests = null;
 
-  renderTodayList(allRequests);
-  renderAllRequests(allRequests);
-  updateBadges();
+async function loadAllRequests() {
+  // إلغاء الاشتراك السابق إن وجد
+  if (unsubRequests) unsubRequests();
+
+  const q = query(collection(db,"requests"), orderBy("createdAt","desc"), limit(150));
+  unsubRequests = onSnapshot(q, snap => {
+    allRequests = [];
+    snap.forEach(d => allRequests.push({ id: d.id, ...d.data() }));
+    renderTodayList(allRequests);
+    renderAllRequests(allRequests);
+    updateBadges();
+  }, err => {
+    console.error("خطأ في مراقبة الطلبات:", err);
+    // fallback لـ getDocs عند فشل onSnapshot
+    getDocs(q).then(snap => {
+      allRequests = [];
+      snap.forEach(d => allRequests.push({ id: d.id, ...d.data() }));
+      renderTodayList(allRequests);
+      renderAllRequests(allRequests);
+      updateBadges();
+    });
+  });
 }
 
 function updateBadges() {

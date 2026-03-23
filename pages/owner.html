@@ -960,7 +960,6 @@ function renderMyRequests(list) {
         </div>` : ""}
     ${r.techReport  ? `<div style="margin-top:6px;padding:8px 10px;background:var(--clr-bg);border-radius:6px;font-size:.85rem">
           <span style="color:var(--clr-text-3)">تقرير الفني: </span>${r.techReport}
-          ${r.cost ? `<div style="margin-top:4px;font-weight:600">التكلفة: ${Number(r.cost).toLocaleString("ar")} ر.س</div>` : ""}
         </div>` : ""}
         ${r.ownerRating ? `<div style="margin-top:6px;color:var(--clr-text-3);font-size:.85rem">تقييمك: ${"⭐".repeat(r.ownerRating)}</div>` : ""}
       </div>
