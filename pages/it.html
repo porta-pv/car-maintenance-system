@@ -198,7 +198,17 @@
       .search-input { width: 100%; }
       .user-actions { width: 100%; justify-content: flex-end; }
     }
-  </style>
+  
+/* Tabler Icons في القائمة الجانبية */
+.nav-item .ti {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: .8;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 </head>
 <body>
 
@@ -221,14 +231,14 @@
     <div class="nav-section">
       <div class="nav-section-title">إدارة النظام</div>
       <button class="nav-item active" id="nav-overview" onclick="showSection('overview')">
-        <span class="nav-icon">📊</span> نظرة عامة
+        <i class="ti ti-dashboard nav-icon"></i> نظرة عامة
       </button>
       <button class="nav-item" id="nav-users" onclick="showSection('users')">
-        <span class="nav-icon">👥</span> إدارة المستخدمين
+        <i class="ti ti-users nav-icon"></i> إدارة المستخدمين
         <span id="badge-pending-users" style="margin-right:auto;background:#fef3c7;color:#92400e;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">!</span>
       </button>
       <button class="nav-item" id="nav-new-user" onclick="showSection('new-user')">
-        <span class="nav-icon">➕</span> إضافة مستخدم
+        <i class="ti ti-user-plus nav-icon"></i> إضافة مستخدم
       </button>
       <button class="nav-item" id="nav-owner-change" onclick="showSection('owner-change')">
         <span class="nav-icon">🔄</span> تغيير رئيس الهيئة
@@ -238,13 +248,13 @@
     <div class="nav-section">
       <div class="nav-section-title">النظام</div>
       <button class="nav-item" id="nav-backup" onclick="showSection('backup')">
-        <span class="nav-icon">💾</span> النسخ الاحتياطي
+        <i class="ti ti-database nav-icon"></i> النسخ الاحتياطي
       </button>
       <button class="nav-item" id="nav-logs" onclick="showSection('logs')">
         <span class="nav-icon">📋</span> سجل العمليات
       </button>
       <button class="nav-item" id="nav-system" onclick="showSection('system')">
-        <span class="nav-icon">⚙️</span> حالة النظام
+        <i class="ti ti-settings nav-icon"></i> حالة النظام
       </button>
     </div>
   </nav>

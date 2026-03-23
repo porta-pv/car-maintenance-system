@@ -227,7 +227,17 @@
     @media (max-width: 480px) {
       .vehicles-grid { grid-template-columns: 1fr; }
     }
-  </style>
+  
+/* Tabler Icons في القائمة الجانبية */
+.nav-item .ti {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: .8;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 </head>
 <body>
 
@@ -250,17 +260,17 @@
     <div class="nav-section">
       <div class="nav-section-title">القائمة</div>
       <button class="nav-item active" id="nav-vehicles" onclick="showSection('vehicles')">
-        <span class="nav-icon">🚗</span> سياراتي
+        <i class="ti ti-car nav-icon"></i> سياراتي
       </button>
       <button class="nav-item" id="nav-km" onclick="showSection('km')">
         <span class="nav-icon">📍</span> تسجيل العداد
       </button>
       <button class="nav-item" id="nav-requests" onclick="showSection('requests')">
-        <span class="nav-icon">🔧</span> طلبات الصيانة
+        <i class="ti ti-tool nav-icon"></i> طلبات الصيانة
         <span id="badge-open" style="margin-right:auto;background:#eff6ff;color:#1e40af;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
       </button>
       <button class="nav-item" id="nav-new-request" onclick="showSection('new-request')">
-        <span class="nav-icon">➕</span> طلب صيانة جديد
+        <i class="ti ti-plus nav-icon"></i> طلب صيانة جديد
       </button>
     </div>
   </nav>

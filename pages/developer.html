@@ -59,7 +59,17 @@
     /* ——— جدول ——— */
     .col-sm { width: 100px; }
     .col-md { width: 140px; }
-  </style>
+  
+/* Tabler Icons في القائمة الجانبية */
+.nav-item .ti {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: .8;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 </head>
 <body>
 
@@ -82,25 +92,25 @@
     <div class="nav-section">
       <div class="nav-section-title">عرض البيانات</div>
       <button class="nav-item active" id="nav-overview" onclick="showSection('overview')">
-        <span class="nav-icon">📊</span> نظرة عامة
+        <i class="ti ti-dashboard nav-icon"></i> نظرة عامة
       </button>
       <button class="nav-item" id="nav-users" onclick="showSection('users')">
-        <span class="nav-icon">👥</span> المستخدمون
+        <i class="ti ti-users nav-icon"></i> المستخدمون
       </button>
       <button class="nav-item" id="nav-vehicles" onclick="showSection('vehicles')">
-        <span class="nav-icon">🚗</span> السيارات
+        <i class="ti ti-car nav-icon"></i> السيارات
       </button>
       <button class="nav-item" id="nav-requests" onclick="showSection('requests')">
-        <span class="nav-icon">🔧</span> الطلبات
+        <i class="ti ti-tool nav-icon"></i> الطلبات
       </button>
       <button class="nav-item" id="nav-reports" onclick="showSection('reports')">
-        <span class="nav-icon">📋</span> التقارير
+        <i class="ti ti-report nav-icon"></i> التقارير
       </button>
     </div>
     <div class="nav-section">
       <div class="nav-section-title">النظام</div>
       <button class="nav-item" id="nav-system" onclick="showSection('system')">
-        <span class="nav-icon">⚙️</span> حالة النظام
+        <i class="ti ti-settings nav-icon"></i> حالة النظام
       </button>
     </div>
   </nav>

@@ -199,7 +199,17 @@
       .filters { width: 100%; }
       .col-owner, .col-km { display: none; }
     }
-  </style>
+  
+/* Tabler Icons في القائمة الجانبية */
+.nav-item .ti {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: .8;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 </head>
 <body>
 
@@ -222,31 +232,31 @@
     <div class="nav-section">
       <div class="nav-section-title">القائمة الرئيسية</div>
       <button class="nav-item active" id="nav-overview" onclick="showSection('overview')">
-        <span class="nav-icon">📊</span> نظرة عامة
+        <i class="ti ti-dashboard nav-icon"></i> نظرة عامة
       </button>
       <button class="nav-item" id="nav-vehicles" onclick="showSection('vehicles')">
-        <span class="nav-icon">🚗</span> السيارات
+        <i class="ti ti-car nav-icon"></i> السيارات
       </button>
       <button class="nav-item" id="nav-requests" onclick="showSection('requests')">
-        <span class="nav-icon">🔧</span> طلبات الصيانة
+        <i class="ti ti-tool nav-icon"></i> طلبات الصيانة
         <span id="badge-pending" style="margin-right:auto;background:#fef3c7;color:#92400e;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
       </button>
       <button class="nav-item" id="nav-transfers" onclick="showSection('transfers')">
-        <span class="nav-icon">🔄</span> نقل الملكية
+        <i class="ti ti-transfer nav-icon"></i> نقل الملكية
         <span id="badge-transfer" style="margin-right:auto;background:#fee2e2;color:#991b1b;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
       </button>
       <button class="nav-item" id="nav-inquiry" onclick="showSection('inquiry')">
-        <span class="nav-icon">💬</span> طلبات الإفادة
+        <i class="ti ti-message-circle nav-icon"></i> طلبات الإفادة
         <span id="badge-inquiry" style="margin-right:auto;background:#fee2e2;color:#991b1b;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">!</span>
       </button>
     </div>
     <div class="nav-section">
       <div class="nav-section-title">التقارير</div>
       <button class="nav-item" id="nav-reports" onclick="showSection('reports')">
-        <span class="nav-icon">📋</span> التقارير الشاملة
+        <i class="ti ti-report nav-icon"></i> التقارير الشاملة
       </button>
       <button class="nav-item" id="nav-alerts" onclick="showSection('alerts')">
-        <span class="nav-icon">🔔</span> التنبيهات
+        <i class="ti ti-bell nav-icon"></i> التنبيهات
       </button>
     </div>
   </nav>

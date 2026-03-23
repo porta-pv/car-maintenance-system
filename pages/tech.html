@@ -239,7 +239,17 @@
       .req-actions { width: 100%; }
       .req-actions .btn { flex: 1; }
     }
-  </style>
+  
+/* Tabler Icons في القائمة الجانبية */
+.nav-item .ti {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: .8;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 </head>
 <body>
 
@@ -262,25 +272,25 @@
     <div class="nav-section">
       <div class="nav-section-title">العمل اليومي</div>
       <button class="nav-item active" id="nav-today" onclick="showSection('today')">
-        <span class="nav-icon">📋</span> لوحتي اليومية
+        <i class="ti ti-layout-dashboard nav-icon"></i> لوحتي اليومية
         <span id="badge-today" style="margin-right:auto;background:#eff6ff;color:#1e40af;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
       </button>
       <button class="nav-item" id="nav-requests" onclick="showSection('requests')">
-        <span class="nav-icon">🔧</span> جميع الطلبات
+        <i class="ti ti-tool nav-icon"></i> جميع الطلبات
         <span id="badge-pending" style="margin-right:auto;background:#fef3c7;color:#92400e;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">0</span>
       </button>
     </div>
     <div class="nav-section">
       <div class="nav-section-title">الأدوات</div>
       <button class="nav-item" id="nav-history" onclick="showSection('history')">
-        <span class="nav-icon">🚗</span> سجل السيارة
+        <i class="ti ti-car nav-icon"></i> سجل السيارة
       </button>
       <button class="nav-item" id="nav-inquiry" onclick="showSection('inquiry');loadInquiries()">
-        <span class="nav-icon">💬</span> الإفادة مع المدير
+        <i class="ti ti-message-circle nav-icon"></i> الإفادة مع المدير
         <span id="badge-inquiry" style="margin-right:auto;background:#fee2e2;color:#991b1b;border-radius:999px;padding:1px 8px;font-size:.75rem;display:none">!</span>
       </button>
       <button class="nav-item" id="nav-stats" onclick="showSection('stats')">
-        <span class="nav-icon">📊</span> إحصاءاتي
+        <i class="ti ti-chart-bar nav-icon"></i> إحصاءاتي
       </button>
     </div>
   </nav>
@@ -300,6 +310,7 @@
         <button class="day-tab active" id="tab-all"       onclick="filterToday('all')">الكل</button>
         <button class="day-tab"        id="tab-pending"   onclick="filterToday('pending')">بانتظار القبول</button>
         <button class="day-tab"        id="tab-active"    onclick="filterToday('active')">قيد التنفيذ</button>
+        <button class="day-tab"        id="tab-scheduled" onclick="filterToday('scheduled')">مجدول</button>
         <button class="day-tab"        id="tab-urgent"    onclick="filterToday('urgent')">عاجل</button>
       </div>
 
@@ -706,7 +717,7 @@ async function loadAllRequests() {
 }
 
 function updateBadges() {
-  const open    = allRequests.filter(r => ["pending","accepted","in_progress"].includes(r.status));
+  const open    = allRequests.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
   const pending = allRequests.filter(r => r.status === "pending");
 
   const badgeToday   = document.getElementById("badge-today");
@@ -754,11 +765,12 @@ window.filterToday = function(filter) {
 
 function renderTodayList(list) {
   // الطلبات النشطة فقط في اللوحة اليومية
-  let filtered = list.filter(r => ["pending","accepted","in_progress"].includes(r.status));
+  let filtered = list.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
 
   if (todayFilter === "pending")  filtered = filtered.filter(r => r.status === "pending");
-  if (todayFilter === "active")   filtered = filtered.filter(r => ["accepted","in_progress"].includes(r.status));
-  if (todayFilter === "urgent")   filtered = filtered.filter(r => r.priority === "urgent");
+  if (todayFilter === "active")    filtered = filtered.filter(r => ["accepted","in_progress","scheduled"].includes(r.status));
+  if (todayFilter === "scheduled") filtered = filtered.filter(r => r.status === "scheduled");
+  if (todayFilter === "urgent")    filtered = filtered.filter(r => r.priority === "urgent");
 
   // ترتيب: عاجل أولاً، ثم حسب التاريخ
   filtered.sort((a,b) => {
