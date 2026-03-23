@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#1c64f2"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <title>سياراتي</title>
+  <link rel="manifest" href="../manifest.json"/>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+</head>
+<body>
+
+<!-- رأس الصفحة -->
+<header class="app-header">
+  <div>
+    <div class="header-title">مرحباً، <span id="hdr-name">…</span></div>
+    <div class="header-sub">رئيس الهيئة</div>
+  </div>
+  <div id="hdr-avatar" class="header-avatar">م</div>
+</header>
+
+<!-- المحتوى -->
+<main class="main-content">
+
+  <!-- ══ سياراتي ══ -->
+  <div class="section active" id="sec-vehicles">
+    <div id="vehicles-list"><div class="loading">جارٍ التحميل…</div></div>
+    <button class="btn btn-outline btn-block" style="margin-top:4px" onclick="showAddVehicle()">
+      <i class="ti ti-plus"></i> إضافة سيارة
+    </button>
+  </div>
+
+  <!-- ══ طلبات الصيانة ══ -->
+  <div class="section" id="sec-requests">
+    <div class="tabs" id="req-tabs">
+      <button class="tab-btn active" onclick="filterReqs('')">الكل</button>
+      <button class="tab-btn" onclick="filterReqs('pending')">بانتظار القبول</button>
+      <button class="tab-btn" onclick="filterReqs('in_progress')">قيد التنفيذ</button>
+      <button class="tab-btn" onclick="filterReqs('done')">منجز</button>
+    </div>
+    <div id="requests-list"><div class="loading">جارٍ التحميل…</div></div>
+  </div>
+
+  <!-- ══ طلب صيانة جديد ══ -->
+  <div class="section" id="sec-new">
+    <div class="card">
+      <div class="card-title">طلب صيانة جديد</div>
+      <div class="form-group">
+        <label class="form-label">السيارة <span style="color:var(--danger)">*</span></label>
+        <select class="form-select" id="nr-vehicle"><option value="">— اختر سيارة —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">نوع الصيانة <span style="color:var(--danger)">*</span></label>
+        <select class="form-select" id="nr-type">
+          <option value="">— اختر —</option>
+          <option>تغيير زيت</option><option>فحص دوري</option>
+          <option>إصلاح مكيف</option><option>إصلاح كهربائي</option>
+          <option>تغيير إطارات</option><option>إصلاح محرك</option>
+          <option>إصلاح ناقل حركة</option><option>صيانة فرامل</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">حالة السيارة عند الطلب</label>
+        <select class="form-select" id="nr-condition">
+          <option value="working">✅ تعمل</option>
+          <option value="needs_service">⚠️ تعمل وتحتاج صيانة عاجلة</option>
+          <option value="stopped">🔴 متوقفة تحتاج صيانة</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">الأولوية</label>
+        <select class="form-select" id="nr-priority">
+          <option value="normal">عادية</option>
+          <option value="urgent">عاجلة</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">وصف المشكلة</label>
+        <textarea class="form-textarea" id="nr-desc" rows="3" placeholder="اشرح المشكلة بالتفصيل…"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="submitRequest()">
+        <i class="ti ti-send"></i> إرسال الطلب
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-vehicles" onclick="showSection('vehicles')">
+    <i class="ti ti-car"></i>
+    <span>سياراتي</span>
+  </button>
+  <button class="nav-btn" id="nav-requests" onclick="showSection('requests')">
+    <i class="ti ti-tool"></i>
+    <span>الطلبات</span>
+    <span class="badge-dot" id="dot-requests"></span>
+  </button>
+  <button class="nav-btn" id="nav-new" onclick="showSection('new')">
+    <i class="ti ti-plus"></i>
+    <span>طلب جديد</span>
+  </button>
+  <button class="nav-btn" id="nav-logout" onclick="doLogout()">
+    <i class="ti ti-logout"></i>
+    <span>خروج</span>
+  </button>
+</nav>
+
+<!-- مودال تفاصيل الطلب -->
+<div class="modal-overlay" id="modal-req" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-req-title">تفاصيل الطلب</div>
+    <div id="modal-req-body"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script type="module">
+import { auth, db } from "../js/firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  collection, query, where, orderBy, onSnapshot,
+  doc, getDoc, addDoc, updateDoc, serverTimestamp, Timestamp, getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { generateRequestId } from "../js/utils.js";
+
+const BASE = window.location.pathname.includes("/car-maintenance-system") ? "/car-maintenance-system" : "";
+let ownerUid = "", ownerData = {}, myVehicles = [], myRequests = [];
+let reqFilter = "";
+
+// ── بوابة الدخول ──
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.replace(BASE + "/mobile/login.html"); return; }
+  const snap = await getDoc(doc(db,"users",user.uid));
+  if (!snap.exists() || snap.data().role !== "owner") {
+    window.location.replace(BASE + "/mobile/login.html"); return;
+  }
+  ownerUid  = user.uid;
+  ownerData = snap.data();
+  document.getElementById("hdr-name").textContent = ownerData.name?.split(" ")[0] || "";
+  document.getElementById("hdr-avatar").textContent = (ownerData.name||"م")[0];
+  watchVehicles();
+  watchRequests();
+});
+
+// ── التنقل ──
+window.showSection = function(name) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("sec-"+name).classList.add("active");
+  document.getElementById("nav-"+name).classList.add("active");
+};
+
+window.doLogout = async function() {
+  await signOut(auth);
+  window.location.replace(BASE + "/mobile/login.html");
+};
+
+// ── السيارات ──
+function watchVehicles() {
+  const q = query(collection(db,"vehicles"), where("ownerId","==",ownerUid));
+  onSnapshot(q, snap => {
+    myVehicles = [];
+    snap.forEach(d => myVehicles.push({id:d.id,...d.data()}));
+    renderVehicles();
+    populateVehicleSelect();
+  });
+}
+
+function conditionBadge(c) {
+  if (c==="needs_service") return `<span class="badge badge-needs-service">⚠️ صيانة عاجلة</span>`;
+  if (c==="stopped")       return `<span class="badge badge-stopped">🔴 متوقفة</span>`;
+  return `<span class="badge badge-working">✅ تعمل</span>`;
+}
+
+function renderVehicles() {
+  const el = document.getElementById("vehicles-list");
+  if (!myVehicles.length) {
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-car-off"></i><p>لا توجد سيارات مسجّلة</p></div>`;
+    return;
+  }
+  el.innerHTML = myVehicles.map(v => `
+    <div class="vehicle-card animate-up">
+      <div class="vehicle-icon"><i class="ti ti-car"></i></div>
+      <div style="flex:1;min-width:0">
+        <div class="vehicle-plate">${v.plate}</div>
+        <div class="vehicle-make">${v.make||""} ${v.model||""} ${v.year?"("+v.year+")":""}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+          <span class="vehicle-km">${Number(v.currentKm||0).toLocaleString("ar")} كم</span>
+          ${conditionBadge(v.condition)}
+        </div>
+      </div>
+      <i class="ti ti-chevron-left" style="color:var(--text-3);font-size:18px"></i>
+    </div>`).join("");
+}
+
+function populateVehicleSelect() {
+  const sel = document.getElementById("nr-vehicle");
+  sel.innerHTML = `<option value="">— اختر سيارة —</option>` +
+    myVehicles.map(v => `<option value="${v.id}">${v.plate} — ${v.make||""} ${v.model||""}</option>`).join("");
+}
+
+// ── الطلبات ──
+function watchRequests() {
+  const q = query(collection(db,"requests"), where("ownerId","==",ownerUid), orderBy("createdAt","desc"));
+  onSnapshot(q, snap => {
+    myRequests = [];
+    snap.forEach(d => myRequests.push({id:d.id,...d.data()}));
+    renderRequests();
+    updateDot();
+  });
+}
+
+function updateDot() {
+  const urgent = myRequests.filter(r =>
+    (r.status==="done"&&!r.ownerConfirmed) ||
+    r.scheduleAwaitingOwnerApproval ||
+    r.scheduleChangeAwaitingApproval
+  ).length;
+  document.getElementById("dot-requests").classList.toggle("show", urgent > 0);
+}
+
+window.filterReqs = function(status) {
+  reqFilter = status;
+  document.querySelectorAll("#req-tabs .tab-btn").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+  renderRequests();
+};
+
+const STATUS_LABELS = {
+  pending:"بانتظار القبول", accepted:"مقبول",
+  scheduled:"مجدول", in_progress:"قيد التنفيذ",
+  done:"منجز", cancelled:"ملغي"
+};
+const STATUS_CLS = {
+  pending:"badge-pending", accepted:"badge-active",
+  scheduled:"badge-scheduled", in_progress:"badge-active",
+  done:"badge-done", cancelled:"badge-cancelled"
+};
+
+function renderRequests() {
+  const el = document.getElementById("requests-list");
+  let list = reqFilter ? myRequests.filter(r => r.status===reqFilter) : myRequests;
+
+  // ترتيب: يحتاج تأكيد أولاً
+  list = [...list].sort((a,b) => {
+    const p = r => (r.status==="done"&&!r.ownerConfirmed)?0 : r.scheduleAwaitingOwnerApproval?1 : 2;
+    return p(a)-p(b);
+  });
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-tool-off"></i><p>لا توجد طلبات</p></div>`;
+    return;
+  }
+  el.innerHTML = list.map(r => {
+    const needsConfirm = r.status==="done" && !r.ownerConfirmed;
+    const awaitSchedule = r.scheduleAwaitingOwnerApproval;
+    return `
+    <div class="req-card animate-up" onclick="openReqModal('${r.id}')">
+      <div class="req-card-top">
+        <div>
+          <div class="req-plate">${r.vehiclePlate||"—"}</div>
+          <div class="req-type">${r.maintenanceType||"—"}</div>
+          <div class="req-id">${r.requestId||r.id.slice(0,8)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+          <span class="badge ${STATUS_CLS[r.status]||""}">${STATUS_LABELS[r.status]||r.status}</span>
+          ${needsConfirm ? `<span class="badge badge-done" style="animation:pulse 1.5s infinite">⬆️ يحتاج تأكيد</span>` : ""}
+          ${awaitSchedule ? `<span class="badge badge-pending">📅 راجع الموعد</span>` : ""}
+        </div>
+      </div>
+      ${r.techReport ? `<div class="req-card-body">✓ تم الإنجاز — اضغط للتأكيد والتقييم</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+// ── مودال تفاصيل الطلب ──
+window.openReqModal = async function(reqId) {
+  document.getElementById("modal-req").classList.add("active");
+  document.getElementById("modal-req-body").innerHTML = `<div class="loading">جارٍ التحميل…</div>`;
+  const snap = await getDoc(doc(db,"requests",reqId));
+  if (!snap.exists()) return;
+  const r = {id:snap.id,...snap.data()};
+  document.getElementById("modal-req-title").textContent = r.requestId||reqId;
+
+  const needsConfirm = r.status==="done" && !r.ownerConfirmed;
+  const awaitSchedule = r.scheduleAwaitingOwnerApproval && r.proposedScheduledAt;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><div style="font-size:12px;color:var(--text-3);margin-bottom:2px">السيارة</div><div style="font-weight:600">${r.vehiclePlate||"—"}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3);margin-bottom:2px">نوع الصيانة</div><div>${r.maintenanceType||"—"}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3);margin-bottom:2px">الحالة</div>
+           <div><span class="badge ${STATUS_CLS[r.status]||""}">${STATUS_LABELS[r.status]||r.status}</span></div></div>
+      <div><div style="font-size:12px;color:var(--text-3);margin-bottom:2px">تاريخ الطلب</div><div style="font-size:13px">${r.createdAt?.toDate?.().toLocaleDateString("ar-SA")||"—"}</div></div>
+    </div>`;
+
+  if (awaitSchedule) {
+    const d = r.proposedScheduledAt.toDate?.();
+    html += `<div style="background:var(--warning-lt);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+      <div style="font-weight:600;color:#92400e;margin-bottom:6px">🔔 الفني اقترح موعداً</div>
+      <div style="font-size:13px;color:#92400e">${d?.toLocaleDateString("ar-SA",{weekday:"long",year:"numeric",month:"long",day:"numeric"})||"—"}</div>
+      ${r.proposedScheduleNote?`<div style="font-size:12px;color:#78350f;margin-top:4px">${r.proposedScheduleNote}</div>`:""}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-success btn-sm" onclick="approveSchedule('${r.id}')"><i class="ti ti-check"></i> موافقة</button>
+        <button class="btn btn-ghost btn-sm" onclick="rejectSchedule('${r.id}')"><i class="ti ti-x"></i> رفض</button>
+      </div>
+    </div>`;
+  }
+
+  if (r.techReport) {
+    html += `<div style="background:var(--success-lt);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#065f46;margin-bottom:4px;font-weight:600">تقرير الفني</div>
+      <div style="font-size:13px;color:#065f46">${r.techReport}</div>
+    </div>`;
+  }
+
+  if (needsConfirm) {
+    html += `
+      <div class="divider"></div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px">تقييم الخدمة</div>
+      <div id="stars" style="display:flex;gap:8px;margin-bottom:12px">
+        ${[1,2,3,4,5].map(i=>`<button onclick="setRating(${i})" id="star-${i}" style="background:none;border:none;font-size:28px;cursor:pointer;color:var(--border-md)">★</button>`).join("")}
+      </div>
+      <div class="form-group"><textarea class="form-textarea" id="confirm-comment" rows="2" placeholder="تعليق (اختياري)…"></textarea></div>
+      <button class="btn btn-primary btn-block" onclick="confirmDone('${r.id}')">
+        <i class="ti ti-check"></i> تأكيد الاستلام
+      </button>`;
+  }
+
+  document.getElementById("modal-req-body").innerHTML = html;
+};
+
+let selectedRating = 0;
+window.setRating = function(v) {
+  selectedRating = v;
+  for (let i=1;i<=5;i++) {
+    const s = document.getElementById("star-"+i);
+    if (s) s.style.color = i<=v ? "#f59e0b" : "var(--border-md)";
+  }
+};
+
+window.confirmDone = async function(reqId) {
+  if (!selectedRating) { showToast("يرجى اختيار تقييم", "error"); return; }
+  const comment = document.getElementById("confirm-comment")?.value.trim();
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      ownerConfirmed:true, ownerConfirmedAt:serverTimestamp(),
+      ownerRating:selectedRating, ownerComment:comment||null,
+    });
+    showToast("شكراً على تقييمك ✓", "success");
+    document.getElementById("modal-req").classList.remove("active");
+    selectedRating = 0;
+  } catch { showToast("حدث خطأ","error"); }
+};
+
+window.approveSchedule = async function(reqId) {
+  const snap = await getDoc(doc(db,"requests",reqId));
+  if (!snap.exists()) return;
+  const r = snap.data();
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      status:"scheduled", scheduledAt:r.proposedScheduledAt,
+      scheduleNote:r.proposedScheduleNote||null,
+      scheduleAwaitingOwnerApproval:false,
+      proposedScheduledAt:null, proposedScheduleNote:null,
+      techScheduleChangeResult:"approved",
+    });
+    showToast("تمت الموافقة على الموعد ✓","success");
+    document.getElementById("modal-req").classList.remove("active");
+  } catch { showToast("حدث خطأ","error"); }
+};
+
+window.rejectSchedule = async function(reqId) {
+  const reason = prompt("سبب رفض الموعد (سيُبلَّغ الفني):");
+  if (reason === null) return;
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      scheduleAwaitingOwnerApproval:false,
+      proposedScheduledAt:null, proposedScheduleNote:null,
+      techScheduleChangeResult:"rejected",
+      scheduleChangeRejectReason:reason||"لم يُذكر سبب",
+    });
+    showToast("تم رفض الموعد","info");
+    document.getElementById("modal-req").classList.remove("active");
+  } catch { showToast("حدث خطأ","error"); }
+};
+
+// ── إرسال طلب جديد ──
+window.submitRequest = async function() {
+  const vId       = document.getElementById("nr-vehicle").value;
+  const type      = document.getElementById("nr-type").value;
+  const condition = document.getElementById("nr-condition").value;
+  const priority  = document.getElementById("nr-priority").value;
+  const desc      = document.getElementById("nr-desc").value.trim();
+
+  if (!vId||!type) { showToast("يرجى اختيار السيارة ونوع الصيانة","error"); return; }
+
+  const vehicle = myVehicles.find(v=>v.id===vId);
+  if (!vehicle) return;
+
+  try {
+    await addDoc(collection(db,"requests"), {
+      requestId:       generateRequestId(),
+      vehicleId:       vId,
+      vehiclePlate:    vehicle.plate,
+      vehicleMake:     vehicle.make||"",
+      vehicleModel:    vehicle.model||"",
+      ownerId:         ownerUid,
+      ownerName:       ownerData.name||"",
+      maintenanceType: type,
+      description:     desc,
+      priority,
+      vehicleCondition: condition,
+      status:          "pending",
+      ownerConfirmed:  false,
+      hasInquiry:      false,
+      createdAt:       serverTimestamp(),
+    });
+    await updateDoc(doc(db,"vehicles",vId),{condition});
+    showToast("تم إرسال الطلب ✓","success");
+    document.getElementById("nr-vehicle").value = "";
+    document.getElementById("nr-type").value    = "";
+    document.getElementById("nr-desc").value    = "";
+    showSection("requests");
+  } catch(e) {
+    console.error(e);
+    showToast("حدث خطأ","error");
+  }
+};
+
+// ── Toast ──
+function showToast(msg, type="info") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => { t.className = ""; }, 2800);
+}
+window.showAddVehicle = function() { showToast("قريباً — إضافة السيارة من الموقع الرئيسي","info"); };
+</script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#1c64f2"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <title>لوحة المدير</title>
+  <link rel="manifest" href="../manifest.json"/>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    .chat-msg-wrap{display:flex;flex-direction:column;margin-bottom:8px}
+    .chat-bubble{max-width:80%;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.5}
+    .chat-mine {background:var(--primary);color:#fff;border-radius:12px 12px 2px 12px;align-self:flex-end}
+    .chat-other{background:var(--surface);border:1px solid var(--border);color:var(--text-1);border-radius:12px 12px 12px 2px;align-self:flex-start}
+    .chat-name{font-size:11px;color:var(--text-3);margin-bottom:3px}
+    .chat-date-sep{display:flex;align-items:center;gap:8px;margin:10px 0}
+    .chat-date-sep span{font-size:11px;color:var(--text-3);white-space:nowrap}
+    .chat-date-sep::before,.chat-date-sep::after{content:"";flex:1;height:0.5px;background:var(--border)}
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <div class="header-title">لوحة المدير</div>
+    <div class="header-sub" id="hdr-sub">…</div>
+  </div>
+  <div id="hdr-avatar" class="header-avatar">م</div>
+</header>
+
+<main class="main-content">
+
+  <!-- ══ نظرة عامة ══ -->
+  <div class="section active" id="sec-overview">
+    <div class="stats-row" id="ov-stats">
+      <div class="stat-card"><div class="stat-val" id="ov-open">—</div><div class="stat-lbl">مفتوحة</div></div>
+      <div class="stat-card"><div class="stat-val" id="ov-done">—</div><div class="stat-lbl">منجزة الشهر</div></div>
+      <div class="stat-card"><div class="stat-val" id="ov-vehicles">—</div><div class="stat-lbl">سيارات</div></div>
+      <div class="stat-card"><div class="stat-val" id="ov-overdue">—</div><div class="stat-lbl">+14 يوم</div></div>
+    </div>
+    <div class="card-title" style="margin-bottom:8px">آخر الطلبات</div>
+    <div id="ov-requests"><div class="loading">جارٍ التحميل…</div></div>
+  </div>
+
+  <!-- ══ طلبات الصيانة ══ -->
+  <div class="section" id="sec-requests">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="filterRequests('',this)">الكل</button>
+      <button class="tab-btn" onclick="filterRequests('pending',this)">بانتظار</button>
+      <button class="tab-btn" onclick="filterRequests('scheduled',this)">مجدول</button>
+      <button class="tab-btn" onclick="filterRequests('in_progress',this)">تنفيذ</button>
+      <button class="tab-btn" onclick="filterRequests('done',this)">منجز</button>
+    </div>
+    <div id="req-list"><div class="loading">جارٍ التحميل…</div></div>
+  </div>
+
+  <!-- ══ الإفادة ══ -->
+  <div class="section" id="sec-inquiry">
+    <div id="inquiry-list"><div class="loading">جارٍ التحميل…</div></div>
+  </div>
+
+</main>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-overview" onclick="showSection('overview')">
+    <i class="ti ti-dashboard"></i><span>نظرة عامة</span>
+  </button>
+  <button class="nav-btn" id="nav-requests" onclick="showSection('requests')">
+    <i class="ti ti-tool"></i><span>الطلبات</span>
+    <span class="badge-dot" id="dot-req"></span>
+  </button>
+  <button class="nav-btn" id="nav-inquiry" onclick="showSection('inquiry');loadInquiries()">
+    <i class="ti ti-message-circle"></i><span>الإفادة</span>
+    <span class="badge-dot" id="dot-inq"></span>
+  </button>
+  <button class="nav-btn" id="nav-logout" onclick="doLogout()">
+    <i class="ti ti-logout"></i><span>خروج</span>
+  </button>
+</nav>
+
+<!-- مودال تفاصيل الطلب -->
+<div class="modal-overlay" id="modal-req" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal-sheet" style="max-height:90vh">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-req-title">تفاصيل الطلب</div>
+    <div id="modal-req-body"></div>
+  </div>
+</div>
+
+<!-- مودال الإفادة -->
+<div class="modal-overlay" id="modal-inq" onclick="if(event.target===this){this.classList.remove('active');if(unsubInq)unsubInq();}">
+  <div class="modal-sheet" style="max-height:85vh">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="inq-title">إفادة</div>
+    <div id="inq-chat" style="min-height:120px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px">
+      <textarea class="form-textarea" id="inq-input" rows="2" placeholder="اكتب ردك…" style="flex:1"></textarea>
+      <button class="btn btn-primary" onclick="sendInqMsg()" style="align-self:flex-end;padding:12px 14px">
+        <i class="ti ti-send"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { auth, db } from "../js/firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  collection, query, where, orderBy, limit,
+  onSnapshot, getDocs, getDoc, getDocFromServer,
+  addDoc, updateDoc, doc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const BASE = window.location.pathname.includes("/car-maintenance-system")?"/car-maintenance-system":"";
+let managerUid="", managerData={}, allRequests=[], reqFilter="";
+let unsubInq=null, currentInqId=null;
+
+const STATUS_LABELS = {pending:"بانتظار",accepted:"مقبول",scheduled:"مجدول",in_progress:"قيد التنفيذ",done:"منجز",cancelled:"ملغي"};
+const STATUS_CLS = {pending:"badge-pending",accepted:"badge-active",scheduled:"badge-scheduled",in_progress:"badge-active",done:"badge-done",cancelled:"badge-cancelled"};
+
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.replace(BASE+"/mobile/login.html"); return; }
+  const snap = await getDoc(doc(db,"users",user.uid));
+  if (!snap.exists()||snap.data().role!=="manager") { window.location.replace(BASE+"/mobile/login.html"); return; }
+  managerUid  = user.uid;
+  managerData = snap.data();
+  document.getElementById("hdr-sub").textContent    = managerData.name||"";
+  document.getElementById("hdr-avatar").textContent = (managerData.name||"م")[0];
+  watchRequests();
+  watchInquiryBadge();
+});
+
+window.doLogout = async()=>{ await signOut(auth); window.location.replace(BASE+"/mobile/login.html"); };
+
+window.showSection = function(name) {
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("sec-"+name).classList.add("active");
+  document.getElementById("nav-"+name).classList.add("active");
+};
+
+// ── الطلبات ──
+function watchRequests() {
+  const q = query(collection(db,"requests"),orderBy("createdAt","desc"),limit(100));
+  onSnapshot(q, snap => {
+    allRequests=[];
+    snap.forEach(d=>allRequests.push({id:d.id,...d.data()}));
+    renderOverview();
+    renderRequests();
+    updateDots();
+  });
+}
+
+function updateDots() {
+  const open=allRequests.filter(r=>["pending","accepted","in_progress","scheduled"].includes(r.status)).length;
+  document.getElementById("dot-req").classList.toggle("show",open>0);
+}
+
+function renderOverview() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(),now.getMonth(),1);
+  const open   = allRequests.filter(r=>["pending","accepted","in_progress","scheduled"].includes(r.status));
+  const done   = allRequests.filter(r=>r.status==="done"&&r.closedAt?.toDate?.()>=monthStart);
+  const limit14= new Date(Date.now()-14*86400000);
+  const overdue= open.filter(r=>r.createdAt?.toDate?.()<limit14).length;
+
+  document.getElementById("ov-open").textContent    = open.length;
+  document.getElementById("ov-done").textContent    = done.length;
+  document.getElementById("ov-overdue").textContent = overdue;
+
+  getDocs(collection(db,"vehicles")).then(s=>{ document.getElementById("ov-vehicles").textContent=s.size; });
+
+  const recent = allRequests.slice(0,8);
+  document.getElementById("ov-requests").innerHTML = recent.map(r=>`
+    <div class="req-card animate-up" onclick="openReqModal('${r.id}')">
+      <div class="req-card-top">
+        <div>
+          <div class="req-plate">${r.vehiclePlate||"—"}</div>
+          <div class="req-type">${r.maintenanceType||"—"} · ${r.ownerName||"—"}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span class="badge ${STATUS_CLS[r.status]||""}">${STATUS_LABELS[r.status]||r.status}</span>
+          ${r.handoverAt?`<span class="badge badge-done" style="font-size:10px">✓ مسلَّمة</span>`:""}
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+window.filterRequests = function(status,btn) {
+  reqFilter=status;
+  document.querySelectorAll("#sec-requests .tab-btn").forEach(b=>b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+  renderRequests();
+};
+
+function renderRequests() {
+  const list = reqFilter?allRequests.filter(r=>r.status===reqFilter):allRequests;
+  const el = document.getElementById("req-list");
+  if (!list.length) { el.innerHTML=`<div class="empty-state"><i class="ti ti-tool-off"></i><p>لا توجد طلبات</p></div>`; return; }
+  el.innerHTML = list.map(r=>`
+    <div class="req-card animate-up" onclick="openReqModal('${r.id}')">
+      <div class="req-card-top">
+        <div>
+          <div class="req-plate">${r.vehiclePlate||"—"}</div>
+          <div class="req-type">${r.maintenanceType||"—"}</div>
+          <div class="req-id">${r.ownerName||"—"} · ${r.techName||"بدون فني"}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span class="badge ${STATUS_CLS[r.status]||""}">${STATUS_LABELS[r.status]||r.status}</span>
+          ${r.handoverAt?`<span class="badge badge-done" style="font-size:10px">✓ مسلَّمة</span>`:""}
+          ${r.scheduleChangeAwaitingApproval?`<span class="badge badge-pending" style="font-size:10px">⏳ تغيير موعد</span>`:""}
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+// ── مودال التفاصيل ──
+window.openReqModal = async function(reqId) {
+  document.getElementById("modal-req").classList.add("active");
+  document.getElementById("modal-req-body").innerHTML=`<div class="loading">جارٍ التحميل…</div>`;
+  const snap = await getDocFromServer(doc(db,"requests",reqId));
+  if (!snap.exists()) return;
+  const r = {id:snap.id,...snap.data()};
+  document.getElementById("modal-req-title").textContent = r.requestId||reqId;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><div style="font-size:12px;color:var(--text-3)">السيارة</div><div style="font-weight:600">${r.vehiclePlate||"—"}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3)">رئيس الهيئة</div><div>${r.ownerName||"—"}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3)">نوع الصيانة</div><div>${r.maintenanceType||"—"}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3)">الفني</div><div>${r.techName||"—"}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3)">الحالة</div>
+           <div><span class="badge ${STATUS_CLS[r.status]||""}">${STATUS_LABELS[r.status]||r.status}</span>
+           ${r.handoverAt?`<span class="badge badge-done" style="margin-right:4px">✓ مسلَّمة</span>`:""}</div></div>
+      <div><div style="font-size:12px;color:var(--text-3)">حالة السيارة</div>
+           <div>${r.vehicleCondition==="needs_service"?"⚠️ عاجلة":r.vehicleCondition==="stopped"?"🔴 متوقفة":"✅ تعمل"}</div></div>
+    </div>`;
+
+  if (r.handoverAt) {
+    html += `<div style="background:var(--success-lt);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:13px">
+      <div style="font-weight:600;color:#065f46;margin-bottom:4px">✓ بيانات التسليم</div>
+      <div style="color:#065f46">السائق: ${r.handoverDriver||"—"} | العداد: ${r.handoverKm?Number(r.handoverKm).toLocaleString("ar")+" كم":"—"}</div>
+      <div style="color:#065f46">${r.handoverAt?.toDate?.().toLocaleDateString("ar-SA")||""}</div>
+    </div>`;
+  }
+
+  if (r.techReport) {
+    html += `<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--text-2);margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:4px">تقرير الفني</div>
+      ${r.techReport}
+      ${r.cost!==undefined&&r.cost!==null?`<div style="margin-top:6px;font-weight:600;color:var(--text-1)">التكلفة: ${Number(r.cost).toLocaleString("ar")} ر.س</div>`:""}
+    </div>`;
+  }
+
+  html += `<button class="btn btn-outline btn-block" onclick="openInqModal('${r.id}','${r.requestId||""}')">
+    <i class="ti ti-message-circle"></i> إفادة مع الفني
+  </button>`;
+
+  document.getElementById("modal-req-body").innerHTML = html;
+};
+
+// ── الإفادة ──
+function watchInquiryBadge() {
+  onSnapshot(query(collection(db,"requests"),where("unreadManager","==",true)), snap=>{
+    document.getElementById("dot-inq").classList.toggle("show",snap.size>0);
+    if (document.getElementById("sec-inquiry").classList.contains("active")) loadInquiries();
+  });
+}
+
+window.loadInquiries = async function() {
+  const el=document.getElementById("inquiry-list");
+  el.innerHTML=`<div class="loading">جارٍ التحميل…</div>`;
+  const snap=await getDocs(query(collection(db,"requests"),orderBy("createdAt","desc"),limit(200)));
+  const rows=[];
+  snap.forEach(d=>{ const r=d.data(); if(r.hasInquiry||r.unreadManager) rows.push({id:d.id,...r}); });
+  rows.sort((a,b)=>{
+    const ta=a.lastInquiryAt?.toDate?.()?.getTime()||a.createdAt?.toDate?.()?.getTime()||0;
+    const tb=b.lastInquiryAt?.toDate?.()?.getTime()||b.createdAt?.toDate?.()?.getTime()||0;
+    return tb-ta;
+  });
+  if (!rows.length) { el.innerHTML=`<div class="empty-state"><i class="ti ti-message-off"></i><p>لا توجد محادثات</p></div>`; return; }
+  el.innerHTML=rows.map(r=>`
+    <div class="card" style="cursor:pointer" onclick="openInqModal('${r.id}','${r.requestId||""}')">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:600">${r.requestId||r.id.slice(0,8)}</div>
+          <div style="font-size:13px;color:var(--text-2)">${r.vehiclePlate||"—"} · الفني: ${r.techName||"—"}</div>
+        </div>
+        ${r.unreadManager?`<span class="badge badge-cancelled">جديد</span>`:`<i class="ti ti-chevron-left" style="color:var(--text-3)"></i>`}
+      </div>
+    </div>`).join("");
+};
+
+window.openInqModal = function(reqId,label) {
+  currentInqId=reqId;
+  document.getElementById("inq-title").textContent="إفادة — "+(label||reqId);
+  document.getElementById("inq-input").value="";
+  document.getElementById("modal-inq").classList.add("active");
+  if(unsubInq) unsubInq();
+  const q=query(collection(db,"requests",reqId,"inquiryMessages"),orderBy("sentAt","asc"));
+  unsubInq=onSnapshot(q,snap=>{
+    const box=document.getElementById("inq-chat");
+    box.innerHTML="";
+    if(snap.empty){box.innerHTML=`<div class="loading" style="padding:20px">ابدأ المحادثة</div>`;return;}
+    const msgs=[]; snap.forEach(d=>msgs.push(d.data()));
+    let lastRole=null,lastDate=null;
+    msgs.forEach(m=>{
+      const isMine=m.role==="manager";
+      const d=m.sentAt?.toDate?.()||new Date();
+      const dateStr=d.toLocaleDateString("ar-SA",{weekday:"short",month:"short",day:"numeric"});
+      if(dateStr!==lastDate){lastDate=dateStr;lastRole=null;box.innerHTML+=`<div class="chat-date-sep"><span>${dateStr}</span></div>`;}
+      const showName=!isMine&&m.role!==lastRole; lastRole=m.role;
+      const timeStr=d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+      box.innerHTML+=`<div class="chat-msg-wrap">
+        ${showName&&m.senderName?`<div class="chat-name">${m.senderName}</div>`:""}
+        <div style="display:flex;align-items:flex-end;gap:6px;${isMine?"justify-content:flex-end":""}">
+          ${isMine?`<span style="font-size:10px;color:var(--text-3)">${timeStr}</span>`:""}
+          <div class="chat-bubble ${isMine?"chat-mine":"chat-other"}">${m.text}</div>
+          ${!isMine?`<span style="font-size:10px;color:var(--text-3)">${timeStr}</span>`:""}
+        </div>
+      </div>`;
+    });
+    box.scrollTop=box.scrollHeight;
+  });
+  updateDoc(doc(db,"requests",reqId),{unreadManager:false}).catch(()=>{});
+};
+
+window.sendInqMsg=async function(){
+  if(!currentInqId) return;
+  const text=document.getElementById("inq-input").value.trim();
+  if(!text) return;
+  document.getElementById("inq-input").value="";
+  try {
+    await addDoc(collection(db,"requests",currentInqId,"inquiryMessages"),{
+      text,role:"manager",senderUid:managerUid,senderName:managerData.name||"المدير",sentAt:serverTimestamp(),
+    });
+    await updateDoc(doc(db,"requests",currentInqId),{
+      hasInquiry:true,lastInquiryAt:serverTimestamp(),unreadTech:true,unreadManager:false,
+    });
+  } catch { showToast("فشل الإرسال","error"); }
+};
+
+function showToast(msg,type="info"){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className=`show ${type}`;
+  setTimeout(()=>{t.className="";},2800);
+}
+</script>
+</body>
+</html>
