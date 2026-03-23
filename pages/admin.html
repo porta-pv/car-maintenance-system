@@ -419,12 +419,13 @@
                 <th class="col-owner">رئيس الهيئة</th>
                 <th>نوع الصيانة</th>
                 <th class="col-status">الحالة</th>
+                <th>التسليم</th>
                 <th>التأخير</th>
                 <th>تفاصيل</th>
               </tr>
             </thead>
             <tbody id="requests-body">
-              <tr class="loading-row"><td colspan="7">جارٍ التحميل…</td></tr>
+              <tr class="loading-row"><td colspan="8">جارٍ التحميل…</td></tr>
             </tbody>
           </table>
         </div>
@@ -842,6 +843,13 @@ function renderOverviewRequests(rows) {
       <td>${r.vehiclePlate || "—"}</td>
       <td>${r.ownerName || "—"}</td>
       <td>${statusBadge(r.status)}</td>
+      <td>${r.handoverAt
+            ? `<div style="font-size:.78rem">
+                <div style="color:#065f46;font-weight:600">✓ مسلَّمة</div>
+                <div style="color:var(--clr-text-3)">${r.handoverDriver||""}</div>
+                <div style="color:var(--clr-text-3)">${formatDate(r.handoverAt)}</div>
+               </div>`
+            : `<span style="color:var(--clr-text-3);font-size:.78rem">—</span>`}</td>
       <td>${r.status === "scheduled" && r.scheduledAt
           ? `<span class="badge badge-scheduled" style="font-size:.72rem">📅 ${adminFormatDate(r.scheduledAt)}</span>`
           : r.status !== "done" && r.status !== "cancelled"
@@ -981,6 +989,13 @@ function renderRequests(list) {
           : ""}
       </td>
       <td>${statusBadge(r.status)}</td>
+      <td>${r.handoverAt
+            ? `<div style="font-size:.78rem">
+                <div style="color:#065f46;font-weight:600">✓ مسلَّمة</div>
+                <div style="color:var(--clr-text-3)">${r.handoverDriver||""}</div>
+                <div style="color:var(--clr-text-3)">${formatDate(r.handoverAt)}</div>
+               </div>`
+            : `<span style="color:var(--clr-text-3);font-size:.78rem">—</span>`}</td>
       <td>${r.status === "scheduled" && r.scheduledAt
             ? `<span class="badge badge-scheduled">📅 ${adminFormatDate(r.scheduledAt)}<br/><span style="font-size:.72rem">${adminDaysUntil(r.scheduledAt)}</span></span>
                ${r.scheduleChangeAwaitingApproval ? `<br/><span class="badge badge-pending" style="font-size:.72rem;margin-top:3px">⏳ تغيير موعد بانتظار موافقة رئيس الهيئة</span>` : ""}

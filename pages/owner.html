@@ -526,6 +526,33 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════
+     مودال: تسليم السيارة للفني
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-handover" style="display:none" onclick="closeModalOutside(event,'modal-handover')">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">تسليم السيارة للفني</div>
+    <input type="hidden" id="handover-req-id"/>
+    <div id="handover-req-info" style="background:var(--clr-bg);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:.875rem;color:var(--clr-text-2)"></div>
+    <div class="form-group">
+      <label class="form-label">قراءة العداد عند التسليم (كم) <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="number" id="handover-km" placeholder="مثال: 75000" min="0" inputmode="numeric"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">وقت التسليم <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="datetime-local" id="handover-time"/>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">اسم السائق <span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="text" id="handover-driver" placeholder="اسم من أحضر السيارة"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-handover')">إلغاء</button>
+      <button class="btn btn-primary" onclick="submitHandover()">تأكيد التسليم</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════
      مودال: تأكيد الاستلام + تقييم
 ══════════════════════════════ -->
@@ -1016,6 +1043,14 @@ function renderMyRequests(list) {
           ${needsConfirm
             ? `<button class="btn btn-primary btn-sm" onclick="openConfirmDoneModal('${r.id}','${r.vehiclePlate||""}','${r.maintenanceType||""}')">تأكيد الاستلام</button>`
             : ""}
+          ${(r.status === "accepted" || r.status === "scheduled") && !r.handoverAt ? `
+            <button class="btn btn-outline btn-sm" style="color:var(--clr-primary)" onclick="openHandoverModal('${r.id}','${r.vehiclePlate||""}','${r.maintenanceType||""}')">
+              <i class="ti ti-car-garage"></i> تسليم السيارة
+            </button>` : ""}
+          ${r.handoverAt ? `
+            <span style="font-size:.78rem;color:#065f46;background:#d1fae5;border-radius:4px;padding:3px 8px">
+              ✓ سُلِّمت ${formatDate(r.handoverAt)}
+            </span>` : ""}
           ${r.status === "pending"
             ? `<button class="btn btn-ghost btn-sm" onclick="cancelRequest('${r.id}')">إلغاء الطلب</button>`
             : ""}
@@ -1061,6 +1096,59 @@ function watchOwnerRequests() {
     renderMyRequests(myRequests);
   });
 }
+
+// ══════════════════════════
+// تسليم السيارة للفني
+// ══════════════════════════
+window.openHandoverModal = function(reqId, plate, type) {
+  document.getElementById("handover-req-id").value = reqId;
+  document.getElementById("handover-req-info").innerHTML =
+    `السيارة: <strong>${plate}</strong> — <strong>${type}</strong>`;
+  document.getElementById("handover-km").value   = "";
+  document.getElementById("handover-driver").value = "";
+  // تعيين الوقت الحالي افتراضياً
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById("handover-time").value = now.toISOString().slice(0,16);
+  document.getElementById("modal-handover").style.display = "flex";
+};
+
+window.submitHandover = async function() {
+  const reqId  = document.getElementById("handover-req-id").value;
+  const km     = Number(document.getElementById("handover-km").value);
+  const time   = document.getElementById("handover-time").value;
+  const driver = document.getElementById("handover-driver").value.trim();
+
+  if (!km)     { showToast("يرجى إدخال قراءة العداد", "error"); return; }
+  if (!time)   { showToast("يرجى تحديد وقت التسليم", "error"); return; }
+  if (!driver) { showToast("يرجى إدخال اسم السائق", "error"); return; }
+
+  try {
+    const handoverAt = Timestamp.fromDate(new Date(time));
+    await updateDoc(doc(db,"requests",reqId), {
+      status:         "in_progress",
+      handoverKm:     km,
+      handoverAt:     handoverAt,
+      handoverDriver: driver,
+      handoverBy:     ownerData.name || ownerUid,
+      handoverByUid:  ownerUid,
+      startedAt:      handoverAt,
+    });
+    // تحديث عداد السيارة
+    const snap = await getDoc(doc(db,"requests",reqId));
+    if (snap.exists() && snap.data().vehicleId) {
+      await updateDoc(doc(db,"vehicles",snap.data().vehicleId), {
+        currentKm:       km,
+        lastKmUpdatedAt: handoverAt,
+      });
+    }
+    showToast("تم تسجيل تسليم السيارة للفني", "success");
+    closeModal("modal-handover");
+  } catch(e) {
+    console.error(e);
+    showToast("حدث خطأ", "error");
+  }
+};
 
 window.cancelRequest = async function(reqId) {
   if (!confirm("هل تريد إلغاء هذا الطلب؟")) return;
