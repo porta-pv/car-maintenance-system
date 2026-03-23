@@ -845,6 +845,16 @@ function buildRequestCard(r, isToday) {
 
     ${r.description ? `<div class="req-desc">${r.description}</div>` : ""}
 
+    ${r.scheduleAwaitingOwnerApproval && r.proposedScheduledAt ? (() => {
+      const d = r.proposedScheduledAt.toDate?.() || new Date(r.proposedScheduledAt);
+      const dateStr = d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+      const timeStr = d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
+      return `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#92400e;margin-bottom:10px">
+        ⏳ الموعد المقترح: <strong>${dateStr} الساعة ${timeStr}</strong> — بانتظار موافقة رئيس الهيئة
+        ${r.proposedScheduleNote ? `<div style="margin-top:4px;font-size:.82rem">${r.proposedScheduleNote}</div>` : ""}
+      </div>`;
+    })() : ""}
+
     ${r.status === "scheduled" && r.scheduledAt ? (() => {
       const d = r.scheduledAt.toDate?.() || new Date(r.scheduledAt);
       const diff = Math.ceil((new Date(d).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / (1000*60*60*24));
@@ -854,7 +864,7 @@ function buildRequestCard(r, isToday) {
       const changeResult = r.techScheduleChangeResult;
       const awaitingApproval = r.scheduleChangeAwaitingApproval;
       let extra = "";
-      if (awaitingApproval) extra = `<div style="margin-top:6px;font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد الجديد</div>`;
+      if (awaitingApproval) extra = `<div style="margin-top:6px;font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة</div>`;
       else if (changeResult==="approved") extra = `<div style="margin-top:6px;font-size:.82rem;color:#065f46;background:#d1fae5;border-radius:4px;padding:4px 8px">✅ وافق رئيس الهيئة على الموعد الجديد</div>`;
       else if (changeResult==="rejected") extra = `<div style="margin-top:6px;font-size:.82rem;color:#991b1b;background:#fee2e2;border-radius:4px;padding:4px 8px">❌ رفض رئيس الهيئة تغيير الموعد${r.scheduleChangeRejectReason ? ` — السبب: ${r.scheduleChangeRejectReason}` : ""}</div>`;
       return `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#1e40af;margin-bottom:10px">
@@ -871,8 +881,11 @@ function buildRequestCard(r, isToday) {
         <button class="btn btn-outline btn-sm" onclick="openScheduleModal('${r.id}')">تحديد موعد</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="openRejectModal('${r.id}')">رفض</button>
       ` : ""}
-      ${isAccepted ? `
+      ${isAccepted && !r.scheduleAwaitingOwnerApproval ? `
         <button class="btn btn-outline btn-sm" onclick="startRequest('${r.id}')">بدء التنفيذ</button>
+      ` : ""}
+      ${isAccepted && r.scheduleAwaitingOwnerApproval ? `
+        <span style="font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد</span>
       ` : ""}
       ${isProgress ? `
         <button class="btn btn-primary btn-sm" onclick="openReportModal('${r.id}')">إغلاق بتقرير</button>
@@ -1323,17 +1336,20 @@ window.confirmSchedule = async function() {
 
   try {
     const scheduledAt = new Date(date + "T" + time);
+    // الموعد يُرسل لرئيس الهيئة للموافقة — لا يُعتمد فوراً
     await updateDoc(doc(db,"requests",reqId), {
-      status:      "scheduled",
-      techId:      techUid,
-      techName:    techData.name || "",
-      scheduledAt: Timestamp.fromDate(scheduledAt),
-      scheduleNote: note || null,
-      acceptedAt:  serverTimestamp(),
+      status:                         "accepted",
+      techId:                         techUid,
+      techName:                       techData.name || "",
+      proposedScheduledAt:            Timestamp.fromDate(scheduledAt),
+      proposedScheduleNote:           note || null,
+      scheduleAwaitingOwnerApproval:  true,
+      scheduleChangeRejectReason:     null,
+      techScheduleChangeResult:       null,
+      acceptedAt:                     serverTimestamp(),
     });
-    showToast("تم تحديد الموعد وإبلاغ المالك", "success");
+    showToast("تم إرسال الموعد المقترح لرئيس الهيئة للموافقة", "success");
     closeModal("modal-schedule");
-    await loadAllRequests();
   } catch { showToast("حدث خطأ", "error"); }
 };
 

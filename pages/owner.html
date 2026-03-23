@@ -931,7 +931,7 @@ function renderMyRequests(list) {
   const sorted = [...list].sort((a,b) => {
     const priority = r => {
       if (r.status==="done" && !r.ownerConfirmed) return 0;
-      if (r.scheduleChangeAwaitingApproval) return 1;
+      if (r.scheduleAwaitingOwnerApproval || r.scheduleChangeAwaitingApproval) return 1;
       if (["pending","accepted","in_progress"].includes(r.status)) return 2;
       if (r.status==="scheduled") return 3;
       if (r.status==="done") return 4;
@@ -973,6 +973,16 @@ function renderMyRequests(list) {
           📅 موعد الصيانة: <strong>${formatScheduledDate(r.scheduledAt)}</strong>
           ${daysUntil(r.scheduledAt) !== null ? ` — ${daysUntil(r.scheduledAt) > 0 ? "بعد "+daysUntil(r.scheduledAt)+" يوم" : daysUntil(r.scheduledAt) === 0 ? "اليوم!" : "تجاوز الموعد"}` : ""}
           ${r.scheduleNote ? `<div style="margin-top:4px;color:#1e3a8a">${r.scheduleNote}</div>` : ""}
+        </div>` : ""}
+        ${r.scheduleAwaitingOwnerApproval && r.proposedScheduledAt ? `
+        <div style="margin-top:6px;padding:10px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:.85rem;color:#92400e">
+          🔔 <strong>الفني اقترح موعداً للصيانة:</strong><br/>
+          الموعد المقترح: <strong>${formatScheduledDate(r.proposedScheduledAt)}</strong>
+          ${r.proposedScheduleNote ? `<div style="margin-top:4px">${r.proposedScheduleNote}</div>` : ""}
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-primary btn-sm" onclick="approveProposedSchedule('${r.id}')">موافقة</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="rejectProposedSchedule('${r.id}')">رفض</button>
+          </div>
         </div>` : ""}
         ${awaitingScheduleApproval && r.newScheduledAt ? `
         <div style="margin-top:6px;padding:10px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:.85rem;color:#92400e">
@@ -1202,6 +1212,41 @@ function daysUntil(ts) {
 // ══════════════════════════
 // موافقة / رفض تغيير الموعد
 // ══════════════════════════
+window.approveProposedSchedule = async function(reqId) {
+  try {
+    const snap = await getDoc(doc(db,"requests",reqId));
+    if (!snap.exists()) return;
+    const r = snap.data();
+    await updateDoc(doc(db,"requests",reqId), {
+      status:                        "scheduled",
+      scheduledAt:                   r.proposedScheduledAt,
+      scheduleNote:                  r.proposedScheduleNote || null,
+      scheduleAwaitingOwnerApproval: false,
+      proposedScheduledAt:           null,
+      proposedScheduleNote:          null,
+      techScheduleChangeResult:      "approved",
+      ownerApprovedScheduleAt:       serverTimestamp(),
+    });
+    showToast("تمت الموافقة على الموعد — تم الجدولة", "success");
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
+window.rejectProposedSchedule = async function(reqId) {
+  const reason = prompt("اذكر سبب رفض الموعد المقترح (سيُبلَّغ الفني):");
+  if (reason === null) return;
+  try {
+    await updateDoc(doc(db,"requests",reqId), {
+      scheduleAwaitingOwnerApproval: false,
+      proposedScheduledAt:           null,
+      proposedScheduleNote:          null,
+      techScheduleChangeResult:      "rejected",
+      scheduleChangeRejectReason:    reason || "لم يُذكر سبب",
+      scheduleChangeRejectedAt:      serverTimestamp(),
+    });
+    showToast("تم رفض الموعد المقترح — سيُبلَّغ الفني", "info");
+  } catch { showToast("حدث خطأ", "error"); }
+};
+
 window.approveScheduleChange = async function(reqId) {
   try {
     const snap = await getDoc(doc(db,"requests",reqId));
