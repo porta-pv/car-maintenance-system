@@ -283,8 +283,19 @@
           <div class="stat-sub">🔴 خارج الخدمة</div>
         </div>
         <!-- رسم بياني دائري -->
-        <div class="stat-card" style="grid-column:span 1;min-height:160px;display:flex;align-items:center;justify-content:center;padding:12px">
-          <canvas id="vehicle-condition-chart" width="140" height="140"></canvas>
+        <div class="stat-card" style="grid-column:span 1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px">
+          <canvas id="vehicle-condition-chart" width="100" height="100"></canvas>
+          <div style="display:flex;flex-direction:column;gap:3px;width:100%">
+            <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--clr-text-2)">
+              <span style="width:8px;height:8px;border-radius:50%;background:#4bc8d4;flex-shrink:0"></span>تعمل
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--clr-text-2)">
+              <span style="width:8px;height:8px;border-radius:50%;background:#e8a87c;flex-shrink:0"></span>صيانة عاجلة
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--clr-text-2)">
+              <span style="width:8px;height:8px;border-radius:50%;background:#d4e0d4;flex-shrink:0"></span>متوقفة
+            </div>
+          </div>
         </div>
       </div>
 
@@ -733,19 +744,17 @@ function drawVehicleChart(working, service, stopped) {
   const ctx = canvas.getContext("2d");
   if (vehicleChartInstance) vehicleChartInstance.destroy();
   vehicleChartInstance = new Chart(ctx, {
-    type: "doughnut",
+    type: "pie",
     data: {
-      labels: ["تعمل", "تحتاج صيانة عاجلة", "متوقفة"],
+      labels: ["تعمل", "صيانة عاجلة", "متوقفة"],
       datasets: [{
         data: [working, service, stopped],
-        backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
-        borderWidth: 2,
-        borderColor: "transparent",
+        backgroundColor: ["#4bc8d4", "#e8a87c", "#d4e0d4"],
+        borderWidth: 0,
       }]
     },
     options: {
       responsive: false,
-      cutout: "60%",
       plugins: {
         legend: { display: false },
         tooltip: {
