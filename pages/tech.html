@@ -517,12 +517,21 @@
         </div>
       </div>
 
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label">الحالة بعد الإنجاز</label>
+      <div class="form-group">
+        <label class="form-label">حالة الإصلاح بعد الإنجاز</label>
         <select class="form-select" id="report-condition">
           <option value="good">جيدة — لا تحتاج صيانة إضافية</option>
           <option value="needs_followup">تحتاج متابعة قريبة</option>
           <option value="needs_major">تحتاج صيانة كبرى</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">حالة السيارة بعد الصيانة <span style="color:#ef4444">*</span></label>
+        <select class="form-select" id="report-vehicle-condition">
+          <option value="working">✅ تعمل — تمت الصيانة بنجاح</option>
+          <option value="needs_service">⚠️ تعمل وتحتاج متابعة عاجلة</option>
+          <option value="stopped">🔴 لا تزال متوقفة — تحتاج صيانة إضافية</option>
         </select>
       </div>
     </div>
@@ -1089,31 +1098,51 @@ window.openReportModal = function(reqId) {
   document.getElementById("report-parts").value  = "";
   document.getElementById("report-cost").value   = "";
   document.getElementById("report-condition").value = "good";
+  // تعيين حالة السيارة بناءً على حالتها عند الطلب
+  const r = allRequests.find(x => x.id === reqId);
+  const currentCondition = r?.vehicleCondition || "working";
+  document.getElementById("report-vehicle-condition").value =
+    currentCondition === "stopped" ? "stopped" :
+    currentCondition === "needs_service" ? "needs_service" : "working";
   document.getElementById("modal-report").style.display = "flex";
 };
 
 window.submitReport = async function() {
-  const reqId     = document.getElementById("report-req-id").value;
-  const techReport= document.getElementById("report-text").value.trim();
-  const parts     = document.getElementById("report-parts").value.trim();
-  const costRaw   = document.getElementById("report-cost").value;
-  const cost      = costRaw === "" ? null : Number(costRaw);
-  const condition = document.getElementById("report-condition").value;
+  const reqId          = document.getElementById("report-req-id").value;
+  const techReport     = document.getElementById("report-text").value.trim();
+  const parts          = document.getElementById("report-parts").value.trim();
+  const costRaw        = document.getElementById("report-cost").value;
+  const cost           = costRaw === "" ? null : Number(costRaw);
+  const condition      = document.getElementById("report-condition").value;
+  const vehicleCondition = document.getElementById("report-vehicle-condition").value;
 
   if (!techReport) { showToast("يرجى كتابة تقرير الأعمال المنجزة", "error"); return; }
   if (cost === null) { showToast("يرجى إدخال التكلفة (يمكن كتابة 0 إذا كانت مجانية)", "error"); return; }
 
   try {
+    // جلب vehicleId من الطلب
+    const reqSnap = await getDoc(doc(db,"requests",reqId));
+    const vehicleId = reqSnap.exists() ? reqSnap.data().vehicleId : null;
+
     await updateDoc(doc(db,"requests",reqId), {
-      status:      "done",
+      status:           "done",
       techReport,
-      parts:       parts || null,
+      parts:            parts || null,
       cost,
       condition,
-      techId:      techUid,
-      techName:    techData.name || "",
-      closedAt:    serverTimestamp(),
+      vehicleConditionAfter: vehicleCondition,
+      techId:           techUid,
+      techName:         techData.name || "",
+      closedAt:         serverTimestamp(),
     });
+
+    // تحديث حالة السيارة في Firestore
+    if (vehicleId) {
+      await updateDoc(doc(db,"vehicles",vehicleId), {
+        condition: vehicleCondition,
+        lastMaintenanceAt: serverTimestamp(),
+      });
+    }
 
     // إضافة للتقارير
     await addDoc(collection(db,"reports"), {
@@ -1121,12 +1150,12 @@ window.submitReport = async function() {
       techId:    techUid,
       techName:  techData.name || "",
       techReport, parts: parts||null, cost, condition,
+      vehicleConditionAfter: vehicleCondition,
       createdAt: serverTimestamp(),
     });
 
-    showToast("تم إغلاق الطلب وإرسال التقرير", "success");
+    showToast("تم إغلاق الطلب وتحديث حالة السيارة", "success");
     closeModal("modal-report");
-    await loadAllRequests();
     loadMyStats();
   } catch (e) {
     console.error(e);
