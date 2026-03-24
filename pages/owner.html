@@ -246,7 +246,7 @@
   <!-- ——— الرأس ——— -->
   <header class="app-header">
     <span class="logo">🚗 نظام الصيانة</span>
-    <span style="font-size:.8rem;color:var(--clr-text-3);background:var(--clr-bg);padding:3px 10px;border-radius:999px;">
+    <span id="hdr-role-label" style="font-size:.8rem;color:var(--clr-text-3);background:var(--clr-bg);padding:3px 10px;border-radius:999px;">
       رئيس الهيئة
     </span>
     <div class="user-info">
@@ -640,8 +640,8 @@ let kmSelectedVehicle = null;
     ownerData = userData;
     document.getElementById("hdr-name").textContent = userData.name || user.email;
     // عرض الدور الصحيح
-    const roleEl = document.querySelector(".app-header span");
-    if (roleEl) roleEl.textContent = userData.role === "dept_manager" ? "مدير الإدارة" : "رئيس الهيئة";
+    const roleLabelEl = document.getElementById("hdr-role-label");
+    if (roleLabelEl) roleLabelEl.textContent = userData.role === "dept_manager" ? "مدير الإدارة" : "رئيس الهيئة";
 
     populateVehicleSelects();  // يُملأ بعد تحميل السيارات
 
