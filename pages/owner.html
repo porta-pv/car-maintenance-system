@@ -612,6 +612,7 @@
 <script type="module">
 import { auth, db }     from "../js/firebase.js";
 import { requireRole }  from "../js/router.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   showToast, statusBadge, formatDate, formatDateTime,
   parseKm, generateRequestId, logout as doLogoutFn
@@ -633,28 +634,39 @@ let currentTransferVId= null;
 let kmSelectedVehicle = null;
 
 // ——— بوابة الدخول ———
-(async () => {
+const BASE_URL = window.location.pathname.includes("/car-maintenance-system")
+  ? "/car-maintenance-system" : "";
+
+const ROLE_REDIRECT = {
+  tech:      "/pages/tech.html",
+  manager:   "/pages/admin.html",
+  it:        "/pages/it.html",
+  developer: "/pages/developer.html",
+};
+
+let _initialized = false;
+onAuthStateChanged(auth, async user => {
+  if (_initialized) return;
+  if (!user) { window.location.replace(BASE_URL + "/pages/login.html"); return; }
   try {
-    console.log("🔄 requireRole...");
-    const { user, userData } = await requireRole(["owner","dept_manager"]);
-    console.log("✅ role:", userData.role, "uid:", user.uid);
+    const snap = await getDoc(doc(db,"users",user.uid));
+    if (!snap.exists()) { window.location.replace(BASE_URL + "/pages/login.html"); return; }
+    const userData = snap.data();
+    if (userData.frozen) { window.location.replace(BASE_URL + "/pages/login.html?reason=frozen"); return; }
+    if (!["owner","dept_manager"].includes(userData.role)) {
+      const pg = ROLE_REDIRECT[userData.role];
+      window.location.replace(BASE_URL + (pg || "/pages/login.html")); return;
+    }
+    _initialized = true;
     ownerUid  = user.uid;
     ownerData = userData;
     document.getElementById("hdr-name").textContent = userData.name || user.email;
     const roleLabelEl = document.getElementById("hdr-role-label");
     if (roleLabelEl) roleLabelEl.textContent = userData.role === "dept_manager" ? "مدير الإدارة" : "رئيس الهيئة";
-
-    populateVehicleSelects();
-
-    console.log("🔄 loadMyVehicles...");
     await loadMyVehicles();
-    console.log("✅ vehicles loaded:", myVehicles.length);
-
-    console.log("🔄 watchOwnerRequests...");
     watchOwnerRequests();
-    console.log("✅ watcher registered");
-  } catch (e) { console.error("❌ init error:", e); }
-})();
+  } catch(e) { console.error("خطأ في التهيئة:", e); }
+});
 
 // ══════════════════════════
 // التنقل
