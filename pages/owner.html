@@ -1360,8 +1360,11 @@ window.rejectProposedSchedule = async function(reqId) {
   if (reason === null) return;
   try {
     await updateDoc(doc(db,"requests",reqId), {
-      // نُعيد الطلب لحالة accepted — بانتظار قرار الفني
-      status:                        "accepted",
+      // نُعيد الطلب لحالة pending — بانتظار قرار الفني من جديد
+      status:                        "pending",
+      techId:                        null,
+      techName:                      null,
+      acceptedAt:                    null,
       scheduleAwaitingOwnerApproval: false,
       proposedScheduledAt:           null,
       proposedScheduleNote:          null,

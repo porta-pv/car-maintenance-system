@@ -934,6 +934,11 @@ function buildRequestCard(r, isToday) {
     <div class="req-actions">
       <button class="btn btn-ghost btn-sm" onclick="openRequestModal('${r.id}')">التفاصيل</button>
       ${isPending ? `
+        ${r.techScheduleChangeResult === "rejected" ? `
+          <div style="background:#fee2e2;border-radius:var(--radius-md);padding:8px 12px;font-size:.83rem;width:100%;margin-bottom:6px">
+            ❌ رفض رئيس الهيئة الموعد المقترح
+            ${r.scheduleChangeRejectReason ? `<div style="margin-top:3px;color:#7f1d1d">السبب: ${r.scheduleChangeRejectReason}</div>` : ""}
+          </div>` : ""}
         <button class="btn btn-primary btn-sm" onclick="acceptRequest('${r.id}')">موافقة فورية</button>
         <button class="btn btn-outline btn-sm" onclick="openScheduleModal('${r.id}')">تحديد موعد</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="openRejectModal('${r.id}')">رفض</button>
@@ -941,16 +946,7 @@ function buildRequestCard(r, isToday) {
       ${isAccepted && r.scheduleAwaitingOwnerApproval ? `
         <span style="font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد</span>
       ` : ""}
-      ${isAccepted && r.techScheduleChangeResult === "rejected" ? `
-        <div style="background:#fee2e2;border-radius:var(--radius-md);padding:8px 12px;font-size:.83rem;margin-bottom:6px">
-          ❌ رفض رئيس الهيئة الموعد المقترح
-          ${r.scheduleChangeRejectReason ? `<div style="margin-top:3px;color:#7f1d1d">السبب: ${r.scheduleChangeRejectReason}</div>` : ""}
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="acceptRequest('${r.id}')">موافقة فورية</button>
-        <button class="btn btn-outline btn-sm" onclick="openScheduleModal('${r.id}')">تحديد موعد جديد</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="openRejectModal('${r.id}')">رفض الطلب</button>
-      ` : ""}
-      ${isAccepted && !r.scheduleAwaitingOwnerApproval && r.techScheduleChangeResult !== "rejected" ? `
+      ${isAccepted && !r.scheduleAwaitingOwnerApproval ? `
         <span style="font-size:.82rem;color:#1e40af;background:#dbeafe;border-radius:4px;padding:4px 8px">⏳ بانتظار تسليم السيارة</span>
       ` : ""}
       ${r.status === "scheduled" && !r.scheduleAwaitingOwnerApproval ? `
