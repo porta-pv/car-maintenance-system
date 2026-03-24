@@ -901,13 +901,15 @@ function buildRequestCard(r, isToday) {
     ${r.description ? `<div class="req-desc">${r.description}</div>` : ""}
 
     ${r.scheduleAwaitingOwnerApproval && r.proposedScheduledAt ? (() => {
-      const d = r.proposedScheduledAt.toDate?.() || new Date(r.proposedScheduledAt);
-      const dateStr = d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
-      const timeStr = d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
-      return `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#92400e;margin-bottom:10px">
-        ⏳ الموعد المقترح: <strong>${dateStr} الساعة ${timeStr}</strong> — بانتظار موافقة رئيس الهيئة
-        ${r.proposedScheduleNote ? `<div style="margin-top:4px;font-size:.82rem">${r.proposedScheduleNote}</div>` : ""}
-      </div>`;
+      try {
+        const d = r.proposedScheduledAt.toDate?.() || new Date(r.proposedScheduledAt);
+        const dateStr = d.toLocaleDateString("ar-SA", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+        const timeStr = d.toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
+        return `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-md);padding:9px 12px;font-size:.85rem;color:#92400e;margin-bottom:10px">
+          ⏳ الموعد المقترح: <strong>${dateStr} الساعة ${timeStr}</strong> — بانتظار موافقة رئيس الهيئة
+          ${r.proposedScheduleNote ? `<div style="margin-top:4px;font-size:.82rem">${r.proposedScheduleNote}</div>` : ""}
+        </div>`;
+      } catch(e) { return ""; }
     })() : ""}
 
     ${r.status === "scheduled" && r.scheduledAt ? (() => {
@@ -939,7 +941,16 @@ function buildRequestCard(r, isToday) {
       ${isAccepted && r.scheduleAwaitingOwnerApproval ? `
         <span style="font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد</span>
       ` : ""}
-      ${isAccepted && !r.scheduleAwaitingOwnerApproval ? `
+      ${isAccepted && r.techScheduleChangeResult === "rejected" ? `
+        <div style="background:#fee2e2;border-radius:var(--radius-md);padding:8px 12px;font-size:.83rem;margin-bottom:6px">
+          ❌ رفض رئيس الهيئة الموعد المقترح
+          ${r.scheduleChangeRejectReason ? `<div style="margin-top:3px;color:#7f1d1d">السبب: ${r.scheduleChangeRejectReason}</div>` : ""}
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="acceptRequest('${r.id}')">موافقة فورية</button>
+        <button class="btn btn-outline btn-sm" onclick="openScheduleModal('${r.id}')">تحديد موعد جديد</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="openRejectModal('${r.id}')">رفض الطلب</button>
+      ` : ""}
+      ${isAccepted && !r.scheduleAwaitingOwnerApproval && r.techScheduleChangeResult !== "rejected" ? `
         <span style="font-size:.82rem;color:#1e40af;background:#dbeafe;border-radius:4px;padding:4px 8px">⏳ بانتظار تسليم السيارة</span>
       ` : ""}
       ${r.status === "scheduled" && !r.scheduleAwaitingOwnerApproval ? `
@@ -1034,13 +1045,15 @@ window.openRequestModal = async function(reqId) {
 window.acceptRequest = async function(reqId) {
   try {
     await updateDoc(doc(db,"requests",reqId), {
-      status:     "accepted",
-      techId:     techUid,
-      techName:   techData.name || "",
-      acceptedAt: serverTimestamp(),
+      status:                        "accepted",
+      techId:                        techUid,
+      techName:                      techData.name || "",
+      acceptedAt:                    serverTimestamp(),
+      techScheduleChangeResult:      null,
+      scheduleChangeRejectReason:    null,
+      scheduleAwaitingOwnerApproval: false,
     });
     showToast("تم قبول الطلب", "success");
-    await loadAllRequests();
   } catch { showToast("حدث خطأ", "error"); }
 };
 
@@ -1448,9 +1461,15 @@ window.openScheduleModal = function(reqId) {
   document.getElementById("schedule-date").value   = "";
   document.getElementById("schedule-time").value   = "";
   document.getElementById("schedule-note").value   = "";
-  // تعيين الحد الأدنى للتاريخ = اليوم
-  document.getElementById("schedule-date").min =
-    new Date().toISOString().split("T")[0];
+  document.getElementById("schedule-date").min = new Date().toISOString().split("T")[0];
+  // إعادة ضبط حالة الرفض السابقة إن وجدت
+  const r = allRequests.find(x => x.id === reqId);
+  if (r?.techScheduleChangeResult === "rejected") {
+    updateDoc(doc(db,"requests",reqId),{
+      techScheduleChangeResult:   null,
+      scheduleChangeRejectReason: null,
+    }).catch(()=>{});
+  }
   document.getElementById("modal-schedule").style.display = "flex";
 };
 

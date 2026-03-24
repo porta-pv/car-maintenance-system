@@ -1360,6 +1360,8 @@ window.rejectProposedSchedule = async function(reqId) {
   if (reason === null) return;
   try {
     await updateDoc(doc(db,"requests",reqId), {
+      // نُعيد الطلب لحالة accepted — بانتظار قرار الفني
+      status:                        "accepted",
       scheduleAwaitingOwnerApproval: false,
       proposedScheduledAt:           null,
       proposedScheduleNote:          null,
@@ -1367,7 +1369,7 @@ window.rejectProposedSchedule = async function(reqId) {
       scheduleChangeRejectReason:    reason || "لم يُذكر سبب",
       scheduleChangeRejectedAt:      serverTimestamp(),
     });
-    showToast("تم رفض الموعد المقترح — سيُبلَّغ الفني", "info");
+    showToast("تم رفض الموعد — سيُبلَّغ الفني بالسبب", "info");
   } catch { showToast("حدث خطأ", "error"); }
 };
 
