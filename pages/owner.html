@@ -703,12 +703,27 @@ function renderVehiclesGrid() {
 
   myVehicles.forEach(v => {
     const alerts = getVehicleAlerts(v);
+
+    // التحقق إذا كانت السيارة قيد التنفيذ
+    const activeReq = myRequests.find(r =>
+      r.vehicleId === v.id && r.status === "in_progress"
+    );
+    const inMaintenance = !!activeReq;
+
     const div = document.createElement("div");
     div.className = "vehicle-card";
+    if (inMaintenance) {
+      div.style.cssText = "opacity:.55;filter:grayscale(.3);pointer-events:none;position:relative";
+    }
+
     div.innerHTML = `
-      <div class="vehicle-card-plate">${v.plate}</div>
-      <div class="vehicle-card-info">${v.make||""} ${v.model||""} ${v.year ? "· "+v.year : ""} ${v.color ? "· "+v.color : ""}</div>
-      <div class="vehicle-card-km">
+      ${inMaintenance ? `
+      <div style="display:flex;align-items:center;gap:6px;background:#fef3c7;border-radius:6px;padding:6px 10px;margin-bottom:10px;font-size:.82rem;font-weight:600;color:#92400e">
+        <i class="ti ti-tool" style="font-size:14px"></i> السيارة في الصيانة — بعهدة الفني
+      </div>` : ""}
+      <div class="vehicle-card-plate" style="${inMaintenance?"text-decoration:line-through;color:var(--clr-text-3)":""}">${v.plate}</div>
+      <div class="vehicle-card-info" style="${inMaintenance?"text-decoration:line-through;color:var(--clr-text-3)":""}">${v.make||""} ${v.model||""} ${v.year ? "· "+v.year : ""} ${v.color ? "· "+v.color : ""}</div>
+      <div class="vehicle-card-km" style="${inMaintenance?"text-decoration:line-through;color:var(--clr-text-3)":""}">
         <span class="km-value">${Number(v.currentKm||0).toLocaleString("ar")}</span>
         <span class="km-label">كم</span>
       </div>
@@ -719,12 +734,13 @@ function renderVehiclesGrid() {
           ? `<span style="background:#fee2e2;color:#991b1b;border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:500">🔴 متوقفة تحتاج صيانة</span>`
           : `<span style="background:#d1fae5;color:#065f46;border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:500">✅ تعمل</span>`}
       </div>
+      ${!inMaintenance ? `
       <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="goToNewRequest('${v.id}')">طلب صيانة</button>
         <button class="btn btn-outline btn-sm" onclick="goToKm('${v.id}')">تسجيل عداد</button>
         <button class="btn btn-ghost btn-sm" onclick="openTransferModal('${v.id}','${v.plate}')">نقل ملكية</button>
-      </div>
-      ${alerts.length ? `<div class="vehicle-card-alerts">${alerts.map(a=>
+      </div>` : ""}
+      ${alerts.length && !inMaintenance ? `<div class="vehicle-card-alerts">${alerts.map(a=>
         `<span class="badge ${a.cls}" style="font-size:.7rem">${a.label}</span>`).join("")}</div>` : ""}
     `;
     grid.appendChild(div);
@@ -1118,8 +1134,9 @@ function watchOwnerRequests() {
     myRequests = [];
     snap.forEach(d => myRequests.push({ id:d.id, ...d.data() }));
     updateOpenBadge();
-    // عرض الطلبات دائماً حتى تكون جاهزة عند الانتقال للقسم
     renderMyRequests(myRequests);
+    // تحديث بطاقات السيارات لعكس حالة الصيانة
+    renderVehiclesGrid();
   });
 }
 
