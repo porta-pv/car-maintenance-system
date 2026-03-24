@@ -402,8 +402,10 @@
           <select class="filter-select" id="req-filter-status" onchange="filterRequests()">
             <option value="">جميع الحالات</option>
             <option value="pending">بانتظار القبول</option>
-            <option value="accepted">مقبول</option>
+            <option value="accepted">مقبول — بانتظار التسليم</option>
+            <option value="handed_over">بانتظار استلام الفني</option>
             <option value="in_progress">قيد التنفيذ</option>
+            <option value="pending_return">بانتظار استلام المالك</option>
             <option value="done">منجز</option>
             <option value="cancelled">ملغي</option>
           </select>
@@ -791,7 +793,7 @@ async function loadOverview() {
     const allReqs = [];
     allReqSnap.forEach(d => allReqs.push({ id:d.id, ...d.data() }));
 
-    const openReqs  = allReqs.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
+    const openReqs  = allReqs.filter(r => ["pending","accepted","scheduled","handed_over","in_progress","pending_return"].includes(r.status));
     const doneMonth = allReqs.filter(r => {
       if (r.status !== "done") return false;
       const closed = r.closedAt?.toDate?.();
@@ -951,7 +953,7 @@ async function loadRequests() {
     snap.forEach(d => allRequests.push({ id:d.id, ...d.data() }));
     renderRequests(allRequests);
     // تحديث الإحصاءات العلوية أيضاً
-    const open = allRequests.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
+    const open = allRequests.filter(r => ["pending","accepted","scheduled","handed_over","in_progress","pending_return"].includes(r.status));
     document.getElementById("stat-open").textContent = open.length;
     updatePendingBadge(open.length);
     const limit14 = new Date(Date.now() - 14*24*60*60*1000);

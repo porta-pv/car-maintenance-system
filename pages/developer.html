@@ -112,6 +112,9 @@
       <button class="nav-item" id="nav-system" onclick="showSection('system')">
         <i class="ti ti-settings nav-icon"></i> حالة النظام
       </button>
+      <button class="nav-item" id="nav-reset" onclick="openResetModal()" style="color:var(--clr-cancelled)">
+        <i class="ti ti-database-x nav-icon"></i> تهيئة قاعدة البيانات
+      </button>
     </div>
   </nav>
 
@@ -345,11 +348,11 @@
 import { auth, db }    from "../js/firebase.js";
 import { requireRole } from "../js/router.js";
 import {
-  showToast, statusBadge, formatDate, logout as doLogoutFn
+  showToast, statusBadge, formatDate, logout as doLogoutFn, showConfirmModal
 } from "../js/utils.js";
 import {
   collection, query, where, orderBy, limit,
-  getDocs, Timestamp
+  getDocs, deleteDoc, doc, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ——— البيانات ———
@@ -652,6 +655,116 @@ window.loadSystemStatus = async function() {
     </div>`).join("");
 };
 
+
+// ══ تهيئة قاعدة البيانات ══
+window.openResetModal = function() {
+  document.getElementById("reset-confirm-text").value = "";
+  document.querySelectorAll("#modal-reset input[type=checkbox]").forEach(c => c.checked = false);
+  document.getElementById("modal-reset").style.display = "flex";
+};
+
+window.executeReset = async function() {
+  const confirmText = document.getElementById("reset-confirm-text").value.trim();
+  if (confirmText !== "تأكيد الحذف") {
+    showToast("يرجى كتابة 'تأكيد الحذف' للمتابعة", "error"); return;
+  }
+
+  const toDelete = [];
+  if (document.getElementById("del-vehicles").checked)     toDelete.push({col:"vehicles", label:"السيارات"});
+  if (document.getElementById("del-requests").checked)     toDelete.push({col:"requests", label:"الطلبات"});
+  if (document.getElementById("del-reports").checked)      toDelete.push({col:"reports", label:"التقارير"});
+  if (document.getElementById("del-logs").checked)         toDelete.push({col:"systemLogs", label:"السجل"});
+  if (document.getElementById("del-notifications").checked)toDelete.push({col:"notifications", label:"الإشعارات"});
+
+  const userRoles = [];
+  if (document.getElementById("del-owners").checked)       userRoles.push("owner");
+  if (document.getElementById("del-dept-managers").checked)userRoles.push("dept_manager");
+  if (document.getElementById("del-techs").checked)        userRoles.push("tech");
+
+  if (!toDelete.length && !userRoles.length) {
+    showToast("لم تحدد أي شيء للحذف", "error"); return;
+  }
+
+  const confirmed = await showConfirmModal(
+    "تأكيد نهائي",
+    `سيتم حذف: ${toDelete.map(d=>d.label).join("، ")}${userRoles.length?" + مستخدمين":""} — هل أنت متأكد؟`
+  );
+  if (!confirmed) return;
+
+  closeModal("modal-reset");
+  showToast("جارٍ الحذف…", "info");
+
+  try {
+    // حذف collections
+    for (const {col} of toDelete) {
+      const snap = await getDocs(collection(db, col));
+      const batch = [];
+      snap.forEach(d => batch.push(deleteDoc(doc(db, col, d.id))));
+      await Promise.all(batch);
+    }
+
+    // حذف مستخدمين حسب الدور (Firestore فقط — Auth يحتاج Admin SDK)
+    for (const role of userRoles) {
+      const snap = await getDocs(query(collection(db,"users"), where("role","==",role)));
+      const batch = [];
+      snap.forEach(d => batch.push(deleteDoc(doc(db,"users",d.id))));
+      await Promise.all(batch);
+    }
+
+    showToast("تم الحذف بنجاح ✓", "success");
+    await loadSystemStatus();
+  } catch(e) {
+    console.error(e);
+    showToast("حدث خطأ أثناء الحذف", "error");
+  }
+};
 </script>
+<!-- ══ مودال تهيئة قاعدة البيانات ══ -->
+<div class="modal-overlay" id="modal-reset" style="display:none" onclick="closeModalOutside(event,'modal-reset')">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-title" style="color:#ef4444">⚠️ تهيئة قاعدة البيانات</div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:.875rem;color:#991b1b">
+      تحذير: هذه العملية تحذف البيانات بشكل نهائي ولا يمكن التراجع عنها.
+    </div>
+    <div style="font-size:.875rem;font-weight:600;margin-bottom:10px">اختر ما تريد حذفه:</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-vehicles" style="width:16px;height:16px"/> جميع السيارات
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-requests" style="width:16px;height:16px"/> جميع طلبات الصيانة
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-reports" style="width:16px;height:16px"/> جميع التقارير
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-logs" style="width:16px;height:16px"/> سجل العمليات
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-notifications" style="width:16px;height:16px"/> الإشعارات
+      </label>
+      <hr style="border-color:var(--clr-border);margin:4px 0"/>
+      <div style="font-size:.8rem;font-weight:600;color:var(--clr-text-2);margin-bottom:4px">حذف مستخدمين حسب الدور:</div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-owners" style="width:16px;height:16px"/> جميع رؤساء الهيئة
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-dept-managers" style="width:16px;height:16px"/> جميع مديري الإدارة
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="del-techs" style="width:16px;height:16px"/> جميع الفنيين
+      </label>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">اكتب "تأكيد الحذف" للمتابعة</label>
+      <input class="form-input" type="text" id="reset-confirm-text" placeholder="تأكيد الحذف"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reset')">إلغاء</button>
+      <button class="btn btn-danger" onclick="executeReset()">تنفيذ الحذف</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

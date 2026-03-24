@@ -307,11 +307,12 @@
 
       <!-- تبويبات التصفية -->
       <div class="day-tabs">
-        <button class="day-tab active" id="tab-all"       onclick="filterToday('all')">الكل</button>
-        <button class="day-tab"        id="tab-pending"   onclick="filterToday('pending')">بانتظار القبول</button>
-        <button class="day-tab"        id="tab-active"    onclick="filterToday('active')">قيد التنفيذ</button>
-        <button class="day-tab"        id="tab-scheduled" onclick="filterToday('scheduled')">مجدول</button>
-        <button class="day-tab"        id="tab-urgent"    onclick="filterToday('urgent')">عاجل</button>
+        <button class="day-tab active" id="tab-all"          onclick="filterToday('all')">الكل</button>
+        <button class="day-tab"        id="tab-pending"      onclick="filterToday('pending')">بانتظار القبول</button>
+        <button class="day-tab"        id="tab-scheduled"    onclick="filterToday('scheduled')">مجدول</button>
+        <button class="day-tab"        id="tab-handed_over"  onclick="filterToday('handed_over')">بانتظار استلامي</button>
+        <button class="day-tab"        id="tab-active"       onclick="filterToday('active')">قيد التنفيذ</button>
+        <button class="day-tab"        id="tab-urgent"       onclick="filterToday('urgent')">عاجل</button>
       </div>
 
       <div id="today-list">
@@ -758,7 +759,7 @@ async function loadAllRequests() {
 }
 
 function updateBadges() {
-  const open    = allRequests.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
+  const open    = allRequests.filter(r => ["pending","accepted","scheduled","handed_over","in_progress"].includes(r.status));
   const pending = allRequests.filter(r => r.status === "pending");
 
   const badgeToday   = document.getElementById("badge-today");
@@ -806,11 +807,12 @@ window.filterToday = function(filter) {
 
 function renderTodayList(list) {
   // الطلبات النشطة فقط في اللوحة اليومية
-  let filtered = list.filter(r => ["pending","accepted","in_progress","scheduled"].includes(r.status));
+  let filtered = list.filter(r => ["pending","accepted","scheduled","handed_over","in_progress"].includes(r.status));
 
   if (todayFilter === "pending")  filtered = filtered.filter(r => r.status === "pending");
-  if (todayFilter === "active")    filtered = filtered.filter(r => ["accepted","in_progress"].includes(r.status));
-  if (todayFilter === "scheduled") filtered = filtered.filter(r => r.status === "scheduled");
+  if (todayFilter === "active")    filtered = filtered.filter(r => r.status === "in_progress");
+  if (todayFilter === "scheduled")    filtered = filtered.filter(r => r.status === "scheduled");
+  if (todayFilter === "handed_over") filtered = filtered.filter(r => r.status === "handed_over");
   if (todayFilter === "urgent")    filtered = filtered.filter(r => r.priority === "urgent");
 
   // ترتيب: عاجل أولاً، ثم حسب التاريخ
@@ -862,7 +864,7 @@ window.filterAllRequests = function() {
 // بناء بطاقة الطلب
 // ══════════════════════════
 function buildRequestCard(r, isToday) {
-  const isOpen      = ["pending","accepted","in_progress"].includes(r.status);
+  const isOpen      = ["pending","accepted","handed_over","in_progress","scheduled"].includes(r.status);
   const isPending   = r.status === "pending";
   const isAccepted  = r.status === "accepted";
   const isProgress  = r.status === "in_progress";
@@ -934,20 +936,23 @@ function buildRequestCard(r, isToday) {
         <button class="btn btn-outline btn-sm" onclick="openScheduleModal('${r.id}')">تحديد موعد</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--clr-cancelled)" onclick="openRejectModal('${r.id}')">رفض</button>
       ` : ""}
-      ${isAccepted && !r.scheduleAwaitingOwnerApproval ? `
-        <button class="btn btn-outline btn-sm" onclick="startRequest('${r.id}')">بدء التنفيذ</button>
-      ` : ""}
       ${isAccepted && r.scheduleAwaitingOwnerApproval ? `
         <span style="font-size:.82rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px">⏳ بانتظار موافقة رئيس الهيئة على الموعد</span>
+      ` : ""}
+      ${isAccepted && !r.scheduleAwaitingOwnerApproval ? `
+        <span style="font-size:.82rem;color:#1e40af;background:#dbeafe;border-radius:4px;padding:4px 8px">⏳ بانتظار تسليم السيارة</span>
+      ` : ""}
+      ${r.status === "scheduled" && !r.scheduleAwaitingOwnerApproval ? `
+        <span style="font-size:.82rem;color:#1e40af;background:#dbeafe;border-radius:4px;padding:4px 8px">⏳ بانتظار تسليم السيارة</span>
+        <button class="btn btn-ghost btn-sm" onclick="openChangeScheduleModal('${r.id}')">تغيير الموعد</button>
+      ` : ""}
+      ${r.status === "handed_over" ? `
+        <button class="btn btn-primary btn-sm" onclick="startRequest('${r.id}')">استلام السيارة — بدء التنفيذ</button>
       ` : ""}
       ${isProgress ? `
         <button class="btn btn-primary btn-sm" onclick="openReportModal('${r.id}')">إغلاق بتقرير</button>
       ` : ""}
-      ${r.status === "scheduled" ? `
-        <button class="btn btn-outline btn-sm" onclick="startRequest('${r.id}')">بدء التنفيذ</button>
-        <button class="btn btn-ghost btn-sm" onclick="openChangeScheduleModal('${r.id}')">تغيير الموعد</button>
-      ` : ""}
-      ${isOpen || r.status === "scheduled" ? `
+      ${["pending","accepted","handed_over","in_progress","scheduled"].includes(r.status) ? `
         <button class="btn btn-ghost btn-sm" onclick="openInquiryModal('${r.id}','${r.requestId||""}')">💬 إفادة</button>
       ` : ""}
     </div>
@@ -1078,9 +1083,9 @@ window.confirmReceive = async function() {
 
   try {
     await updateDoc(doc(db,"requests",reqId), {
-      status:        "in_progress",
-      startedAt:     serverTimestamp(),
-      techReceiveKm: km,
+      status:          "in_progress",
+      startedAt:       serverTimestamp(),
+      techReceiveKm:   km,
       techReceiveNote: note || null,
       techReceivedAt:  serverTimestamp(),
     });
@@ -1125,7 +1130,7 @@ window.submitReport = async function() {
     const vehicleId = reqSnap.exists() ? reqSnap.data().vehicleId : null;
 
     await updateDoc(doc(db,"requests",reqId), {
-      status:           "done",
+      status:           "pending_return",
       techReport,
       parts:            parts || null,
       cost,
@@ -1598,7 +1603,7 @@ window.loadMyStats = async function() {
       return closed >= startDate;
     });
 
-    const activeList = allMy.filter(r => ["accepted","in_progress","scheduled"].includes(r.status));
+    const activeList = allMy.filter(r => ["accepted","handed_over","in_progress","scheduled"].includes(r.status));
 
     const totalCost = doneList.reduce((s,r) => s + (Number(r.cost)||0), 0);
     const ratings   = doneList.filter(r => r.ownerRating).map(r => r.ownerRating);

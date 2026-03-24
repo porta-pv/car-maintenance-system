@@ -635,10 +635,13 @@ let kmSelectedVehicle = null;
 // ——— بوابة الدخول ———
 (async () => {
   try {
-    const { user, userData } = await requireRole("owner");
+    const { user, userData } = await requireRole(["owner","dept_manager"]);
     ownerUid  = user.uid;
     ownerData = userData;
     document.getElementById("hdr-name").textContent = userData.name || user.email;
+    // عرض الدور الصحيح
+    const roleEl = document.querySelector(".app-header span");
+    if (roleEl) roleEl.textContent = userData.role === "dept_manager" ? "مدير الإدارة" : "رئيس الهيئة";
 
     populateVehicleSelects();  // يُملأ بعد تحميل السيارات
 
@@ -967,7 +970,7 @@ function renderMyRequests(list) {
   // ترتيب: يحتاج تأكيد → انتظار موافقة الموعد → مفتوح → مجدول → منجز → ملغي
   const sorted = [...list].sort((a,b) => {
     const priority = r => {
-      if (r.status==="done" && !r.ownerConfirmed) return 0;
+      if (r.status==="pending_return") return 0;
       if (r.scheduleAwaitingOwnerApproval || r.scheduleChangeAwaitingApproval) return 1;
       if (["pending","accepted","in_progress"].includes(r.status)) return 2;
       if (r.status==="scheduled") return 3;
@@ -981,7 +984,7 @@ function renderMyRequests(list) {
     try {
     const isDone       = r.status === "done";
     const needsConfirm = isDone && !r.ownerConfirmed;
-    const isOpen       = ["pending","accepted","in_progress"].includes(r.status);
+    const isOpen       = ["pending","accepted","handed_over","in_progress","pending_return","scheduled"].includes(r.status);
     const awaitingScheduleApproval = r.scheduleChangeAwaitingApproval === true;
     const card = document.createElement("div");
     card.innerHTML = `
@@ -1043,7 +1046,9 @@ function renderMyRequests(list) {
           ${needsConfirm
             ? `<button class="btn btn-primary btn-sm" onclick="openConfirmDoneModal('${r.id}','${r.vehiclePlate||""}','${r.maintenanceType||""}')">تأكيد الاستلام</button>`
             : ""}
-          ${(r.status === "accepted" || r.status === "scheduled") && !r.handoverAt ? `
+          ${(r.status === "accepted" || r.status === "scheduled") &&
+            !r.handoverAt &&
+            !r.scheduleAwaitingOwnerApproval ? `
             <button class="btn btn-outline btn-sm" style="color:var(--clr-primary)" onclick="openHandoverModal('${r.id}','${r.vehiclePlate||""}','${r.maintenanceType||""}')">
               <i class="ti ti-car-garage"></i> تسليم السيارة
             </button>` : ""}
@@ -1051,8 +1056,12 @@ function renderMyRequests(list) {
             <span style="font-size:.78rem;color:#065f46;background:#d1fae5;border-radius:4px;padding:3px 8px">
               ✓ سُلِّمت ${formatDate(r.handoverAt)}
             </span>` : ""}
-          ${r.status === "pending"
-            ? `<button class="btn btn-ghost btn-sm" onclick="cancelRequest('${r.id}')">إلغاء الطلب</button>`
+          ${r.status === "pending_return" ? `
+            <button class="btn btn-primary btn-sm" onclick="openConfirmDoneModal('${r.id}','${r.vehiclePlate||""}','${r.maintenanceType||""}')">
+              <i class="ti ti-check"></i> تأكيد استلام السيارة
+            </button>` : ""}
+          ${r.status === "pending" ? `
+            <button class="btn btn-ghost btn-sm" onclick="cancelRequest('${r.id}')">إلغاء الطلب</button>`
             : ""}
         </div>
       </div>
@@ -1075,8 +1084,7 @@ window.filterMyRequests = function() {
 
 function updateOpenBadge() {
   const count = myRequests.filter(r =>
-    ["pending","accepted","in_progress","scheduled"].includes(r.status) ||
-    (r.status === "done" && !r.ownerConfirmed) ||
+    ["pending","accepted","handed_over","in_progress","pending_return","scheduled"].includes(r.status) ||
     r.scheduleChangeAwaitingApproval
   ).length;
   const el = document.getElementById("badge-open");
@@ -1126,13 +1134,12 @@ window.submitHandover = async function() {
   try {
     const handoverAt = Timestamp.fromDate(new Date(time));
     await updateDoc(doc(db,"requests",reqId), {
-      status:         "in_progress",
+      status:         "handed_over",
       handoverKm:     km,
       handoverAt:     handoverAt,
       handoverDriver: driver,
       handoverBy:     ownerData.name || ownerUid,
       handoverByUid:  ownerUid,
-      startedAt:      handoverAt,
     });
     // تحديث عداد السيارة
     const snap = await getDoc(doc(db,"requests",reqId));
@@ -1179,6 +1186,7 @@ window.openConfirmDoneModal = function(reqId, plate, type) {
     if (!selectedRating) { showToast("يرجى اختيار تقييم", "error"); return; }
     try {
       await updateDoc(doc(db,"requests",currentDoneReqId), {
+        status:          "done",
         ownerConfirmed:  true,
         ownerConfirmedAt: serverTimestamp(),
         ownerRating:     selectedRating,

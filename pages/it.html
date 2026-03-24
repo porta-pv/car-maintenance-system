@@ -367,6 +367,7 @@
             <select class="form-select" id="nu-role">
               <option value="">— اختر —</option>
               <option value="owner">رئيس الهيئة</option>
+              <option value="dept_manager">مدير الإدارة</option>
               <option value="tech">فني</option>
               <option value="manager">مدير</option>
               <option value="it">IT</option>
@@ -696,7 +697,8 @@ async function loadOverview() {
 
   // توزيع الأدوار
   const ROLE_LABELS = {
-    owner:"رئيس الهيئة", tech:"فني", manager:"مدير", it:"IT", developer:"مطور"
+    owner:"رئيس الهيئة", dept_manager:"مدير الإدارة",
+    tech:"فني", manager:"مدير", it:"IT", developer:"مطور"
   };
   const roleCounts = {};
   users.forEach(u => { roleCounts[u.role] = (roleCounts[u.role]||0)+1; });
