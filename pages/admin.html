@@ -292,6 +292,11 @@
           <div class="stat-value" id="stat-stopped">—</div>
           <div class="stat-sub">🔴 خارج الخدمة</div>
         </div>
+        <div class="stat-card" style="border:1.5px solid #93c5fd;background:#eff6ff">
+          <div class="stat-label" style="color:#1e40af">🔧 في الصيانة</div>
+          <div class="stat-value" id="stat-in-maintenance" style="color:#1e40af">—</div>
+          <div class="stat-sub" style="color:#3b82f6">بعهدة الفني حالياً</div>
+        </div>
         <!-- رسم بياني دائري -->
         <div class="stat-card" style="grid-column:span 1;display:flex;flex-direction:row;align-items:center;justify-content:center;padding:14px;gap:12px">
           <canvas id="vehicle-condition-chart" width="90" height="90" style="flex-shrink:0"></canvas>
@@ -304,6 +309,9 @@
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--clr-text-2)">
               <span style="width:10px;height:10px;border-radius:50%;background:#d4e0d4;flex-shrink:0"></span>متوقفة
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--clr-text-2)">
+              <span style="width:10px;height:10px;border-radius:50%;background:#60a5fa;flex-shrink:0"></span>في الصيانة
             </div>
           </div>
         </div>
@@ -748,20 +756,20 @@ window.closeModalOutside = (e, id) => { if (e.target.id === id) closeModal(id); 
 // ═══════════════════════════════
 // رسم بياني دائري لحالات السيارات
 let vehicleChartInstance = null;
-function drawVehicleChart(working, service, stopped) {
+function drawVehicleChart(working, service, stopped, inMaintenance=0) {
   const canvas = document.getElementById("vehicle-condition-chart");
   if (!canvas) return;
-  const total = working + service + stopped;
+  const total = working + service + stopped + inMaintenance;
   if (!total) return;
   const ctx = canvas.getContext("2d");
   if (vehicleChartInstance) vehicleChartInstance.destroy();
   vehicleChartInstance = new Chart(ctx, {
     type: "pie",
     data: {
-      labels: ["تعمل", "صيانة عاجلة", "متوقفة"],
+      labels: ["تعمل", "صيانة عاجلة", "متوقفة", "في الصيانة"],
       datasets: [{
-        data: [working, service, stopped],
-        backgroundColor: ["#4bc8d4", "#e8a87c", "#d4e0d4"],
+        data: [working, service, stopped, inMaintenance],
+        backgroundColor: ["#4bc8d4", "#e8a87c", "#d4e0d4", "#60a5fa"],
         borderWidth: 0,
       }]
     },
@@ -808,20 +816,23 @@ async function loadOverview() {
     // إحصاءات السيارات حسب الحالة
     const vehs = [];
     vehSnap.forEach(d => vehs.push(d.data()));
-    const vWorking  = vehs.filter(v => !v.condition || v.condition === "working").length;
-    const vService  = vehs.filter(v => v.condition === "needs_service").length;
-    const vStopped  = vehs.filter(v => v.condition === "stopped").length;
+    const vWorking       = vehs.filter(v => !v.condition || v.condition === "working").length;
+    const vService       = vehs.filter(v => v.condition === "needs_service").length;
+    const vStopped       = vehs.filter(v => v.condition === "stopped").length;
+    // السيارات في الصيانة = الطلبات بحالة in_progress (نستخدم allRequests المحمّلة)
+    const vInMaintenance = allRequests.filter(r => r.status === "in_progress").length;
 
-    document.getElementById("stat-vehicles").textContent     = vehSnap.size;
-    document.getElementById("stat-working").textContent      = vWorking;
-    document.getElementById("stat-needs-service").textContent= vService;
-    document.getElementById("stat-stopped").textContent      = vStopped;
-    document.getElementById("stat-open").textContent         = openReqs.length;
-    document.getElementById("stat-done").textContent         = doneMonth.length;
-    document.getElementById("stat-overdue").textContent      = overdue;
+    document.getElementById("stat-vehicles").textContent        = vehSnap.size;
+    document.getElementById("stat-working").textContent         = vWorking;
+    document.getElementById("stat-needs-service").textContent   = vService;
+    document.getElementById("stat-stopped").textContent         = vStopped;
+    document.getElementById("stat-in-maintenance").textContent  = vInMaintenance;
+    document.getElementById("stat-open").textContent            = openReqs.length;
+    document.getElementById("stat-done").textContent            = doneMonth.length;
+    document.getElementById("stat-overdue").textContent         = overdue;
 
     // رسم الـ Pie Chart
-    drawVehicleChart(vWorking, vService, vStopped);
+    drawVehicleChart(vWorking, vService, vStopped, vInMaintenance);
 
     // آخر 10 طلبات
     renderOverviewRequests(allReqs.slice(0, 10));
@@ -959,6 +970,10 @@ async function loadRequests() {
     const limit14 = new Date(Date.now() - 14*24*60*60*1000);
     const overdue = open.filter(r => { const c = r.createdAt?.toDate?.(); return c && c < limit14; }).length;
     document.getElementById("stat-overdue").textContent = overdue;
+    // تحديث بطاقة في الصيانة
+    const inMaint = allRequests.filter(r => r.status === "in_progress").length;
+    const inMaintEl = document.getElementById("stat-in-maintenance");
+    if (inMaintEl) inMaintEl.textContent = inMaint;
     // تحديث آخر الطلبات في النظرة العامة
     if (document.getElementById("section-overview")?.classList.contains("active")) {
       renderOverviewRequests(allRequests.slice(0,10));
