@@ -11,10 +11,11 @@
     .section.active { display: block; }
 
     /* بطاقات الإحصاء العلوية */
-    .stat-card.accent-blue  { border-top: 3px solid var(--clr-primary); }
-    .stat-card.accent-green { border-top: 3px solid #10b981; }
-    .stat-card.accent-amber { border-top: 3px solid #f59e0b; }
-    .stat-card.accent-red   { border-top: 3px solid #ef4444; }
+    .stat-card.accent-blue   { border-top: 3px solid var(--clr-primary); }
+    .stat-card.accent-green  { border-top: 3px solid #10b981; }
+    .stat-card.accent-amber  { border-top: 3px solid #f59e0b; }
+    .stat-card.accent-red    { border-top: 3px solid #ef4444; }
+    .stat-card.accent-purple { border-top: 3px solid #8b5cf6; }
 
     /* رأس القسم */
     .section-header {
@@ -292,10 +293,10 @@
           <div class="stat-value" id="stat-stopped">—</div>
           <div class="stat-sub">🔴 خارج الخدمة</div>
         </div>
-        <div class="stat-card" style="border:1.5px solid #93c5fd;background:#eff6ff">
-          <div class="stat-label" style="color:#1e40af">🔧 في الصيانة</div>
-          <div class="stat-value" id="stat-in-maintenance" style="color:#1e40af">—</div>
-          <div class="stat-sub" style="color:#3b82f6">بعهدة الفني حالياً</div>
+        <div class="stat-card accent-purple">
+          <div class="stat-label">🔧 في الصيانة</div>
+          <div class="stat-value" id="stat-in-maintenance">—</div>
+          <div class="stat-sub">السيارة تحت الصيانة</div>
         </div>
         <!-- رسم بياني دائري -->
         <div class="stat-card" style="grid-column:span 1;display:flex;flex-direction:row;align-items:center;justify-content:center;padding:14px;gap:12px">
@@ -831,8 +832,10 @@ async function loadOverview() {
     document.getElementById("stat-done").textContent            = doneMonth.length;
     document.getElementById("stat-overdue").textContent         = overdue;
 
-    // رسم الـ Pie Chart
-    drawVehicleChart(vWorking, vService, vStopped, vInMaintenance);
+    // رسم الـ Pie Chart — vInMaintenance من allRequests
+    const vInMaintenanceFinal = allRequests.filter(r => r.status === "in_progress").length;
+    document.getElementById("stat-in-maintenance").textContent = vInMaintenanceFinal;
+    drawVehicleChart(vWorking, vService, vStopped, vInMaintenanceFinal);
 
     // آخر 10 طلبات
     renderOverviewRequests(allReqs.slice(0, 10));
@@ -970,10 +973,22 @@ async function loadRequests() {
     const limit14 = new Date(Date.now() - 14*24*60*60*1000);
     const overdue = open.filter(r => { const c = r.createdAt?.toDate?.(); return c && c < limit14; }).length;
     document.getElementById("stat-overdue").textContent = overdue;
-    // تحديث بطاقة في الصيانة
+    // تحديث بطاقة في الصيانة وإعادة رسم الـ chart
     const inMaint = allRequests.filter(r => r.status === "in_progress").length;
     const inMaintEl = document.getElementById("stat-in-maintenance");
     if (inMaintEl) inMaintEl.textContent = inMaint;
+    // إعادة رسم الـ chart إن كانت البيانات محملة
+    const wEl = document.getElementById("stat-working");
+    const sEl = document.getElementById("stat-needs-service");
+    const stEl = document.getElementById("stat-stopped");
+    if (wEl && wEl.textContent !== "—") {
+      drawVehicleChart(
+        parseInt(wEl.textContent)||0,
+        parseInt(sEl.textContent)||0,
+        parseInt(stEl.textContent)||0,
+        inMaint
+      );
+    }
     // تحديث آخر الطلبات في النظرة العامة
     if (document.getElementById("section-overview")?.classList.contains("active")) {
       renderOverviewRequests(allRequests.slice(0,10));
