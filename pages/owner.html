@@ -635,19 +635,25 @@ let kmSelectedVehicle = null;
 // ——— بوابة الدخول ———
 (async () => {
   try {
+    console.log("🔄 requireRole...");
     const { user, userData } = await requireRole(["owner","dept_manager"]);
+    console.log("✅ role:", userData.role, "uid:", user.uid);
     ownerUid  = user.uid;
     ownerData = userData;
     document.getElementById("hdr-name").textContent = userData.name || user.email;
-    // عرض الدور الصحيح
     const roleLabelEl = document.getElementById("hdr-role-label");
     if (roleLabelEl) roleLabelEl.textContent = userData.role === "dept_manager" ? "مدير الإدارة" : "رئيس الهيئة";
 
-    populateVehicleSelects();  // يُملأ بعد تحميل السيارات
+    populateVehicleSelects();
 
+    console.log("🔄 loadMyVehicles...");
     await loadMyVehicles();
+    console.log("✅ vehicles loaded:", myVehicles.length);
+
+    console.log("🔄 watchOwnerRequests...");
     watchOwnerRequests();
-  } catch (e) { console.error(e); }
+    console.log("✅ watcher registered");
+  } catch (e) { console.error("❌ init error:", e); }
 })();
 
 // ══════════════════════════
