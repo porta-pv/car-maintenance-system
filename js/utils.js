@@ -8,7 +8,9 @@ import { signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-aut
 // ——— تسجيل الخروج ———
 export async function logout() {
   await signOut(auth);
-  window.location.href = "/pages/login.html";
+  const base = window.location.pathname.includes("/car-maintenance-system")
+    ? "/car-maintenance-system" : "";
+  window.location.replace(base + "/pages/login.html");
 }
 
 // ——— Toast Notification ———
@@ -56,14 +58,29 @@ export function delayBadge(dateString) {
 
 // ——— حالة الطلب Badge ———
 const STATUS_MAP = {
-  pending:   { label: "بانتظار القبول",  cls: "badge-pending"   },
-  accepted:  { label: "مقبول",           cls: "badge-active"    },
-  scheduled: { label: "مجدول",           cls: "badge-scheduled" },
-  in_progress:{ label: "قيد التنفيذ",   cls: "badge-active"    },
-  done:      { label: "منجز",            cls: "badge-done"      },
-  cancelled: { label: "ملغي",            cls: "badge-cancelled" },
-  waiting_approval: { label: "انتظار موافقة", cls: "badge-pending" },
+  pending:        { label: "بانتظار القبول",          cls: "badge-pending"    },
+  accepted:       { label: "مقبول — بانتظار التسليم", cls: "badge-active"     },
+  scheduled:      { label: "مجدول",                   cls: "badge-scheduled"  },
+  handed_over:    { label: "بانتظار استلام الفني",    cls: "badge-handover"   },
+  in_progress:    { label: "قيد التنفيذ",             cls: "badge-active"     },
+  pending_return: { label: "بانتظار استلام المالك",   cls: "badge-pending"    },
+  done:           { label: "منجز",                    cls: "badge-done"       },
+  cancelled:      { label: "ملغي",                    cls: "badge-cancelled"  },
+  waiting_approval: { label: "انتظار موافقة",         cls: "badge-pending"    },
 };
+
+// دالة مساعدة: نص الدور بالعربية
+export function roleLabel(role) {
+  const ROLES = {
+    owner:        "رئيس الهيئة",
+    dept_manager: "مدير الإدارة",
+    tech:         "فني الصيانة",
+    manager:      "المدير العام",
+    it:           "تقنية المعلومات",
+    developer:    "مطور",
+  };
+  return ROLES[role] || role;
+}
 
 export function statusBadge(status) {
   const s = STATUS_MAP[status] || { label: status, cls: "" };
